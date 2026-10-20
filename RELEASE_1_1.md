@@ -1,17 +1,17 @@
 # AlwaysStrong Repair 1.1
 
-Обновление оформления на базе Repair 1 (versionCode 108).
+A visual update based on Repair 1 (versionCode 108).
 
-- @SUKISU_ULTR4 стоит первым в author и выводе установки, а также виден под заголовком WebUI.
-- Баннер карточки менеджера заменён на PNG-кадр из присланного ролика.
-- Исходный десятисекундный MP4 включён локально в WebUI. Видео без звука, с повтором и паузой вне экрана; при ограничении анимации показывается постер.
-- Изменены только banner.png, customize.sh (кредит и установка ресурсов), module.prop, webroot/index.html и webroot/main.js; добавлены webroot/banner.png и webroot/banner.mp4.
-- TEE/PIF, native helpers, boot/service scripts, keybox и verdict handling побайтово совпадают с ZIP Repair 1. Изменения экспериментальной Repair 2 RC1 сюда не включены.
+- @SUKISU_ULTR4 is listed first in the author field and installer output, and appears below the WebUI title.
+- The manager card banner is replaced with a PNG frame from the supplied video.
+- The original ten-second MP4 is bundled locally in WebUI. It plays muted and loops, pauses offscreen, and is replaced by a poster when reduced motion is enabled.
+- Only `banner.png`, `customize.sh` (credits and resource installation), `module.prop`, `webroot/index.html`, and `webroot/main.js` changed; `webroot/banner.png` and `webroot/banner.mp4` were added.
+- TEE/PIF, native helpers, boot/service scripts, keybox handling, and verdict handling are byte-for-byte identical to the Repair 1 ZIP. Experimental Repair 2 RC1 changes are not included.
 
-Установка: этот ZIP поверх установленного AlwaysStrong через root-менеджер, затем перезагрузка. Данные ключей и настройки сохраняются штатным установщиком Repair 1. Не нужно удалять /data/adb/tricky_store. Для просмотра новой карточки может потребоваться обновить список модулей или снова открыть менеджер.
+Installation: install this ZIP over the existing AlwaysStrong module through your root manager, then reboot. The Repair 1 installer preserves keys and settings. Do not delete `/data/adb/tricky_store`. Refresh the module list or reopen the manager if the new card does not appear.
 
-Проверки: ZIP CRC, сравнение всех файлов с Repair 1, shell/JS syntax; 3 существующих installer/WebUI tests; фактическое извлечение пяти WebUI/media ресурсов для Magisk/KernelSU/APatch на хосте, сравнение содержимого и прав. Мобильный предпросмотр 390x844 через IAB: автор виден, нет горизонтального переполнения, видео играет muted/loop, при прокрутке ставится на паузу и после возврата продолжает играть, ошибок консоли не получено. Настройка reduced-motion проверена по коду/CSS, отдельно на Android не запускалась.
+Checks: ZIP CRC, comparison of every file against Repair 1, shell/JavaScript syntax, and the three existing installer/WebUI tests. All five WebUI/media resources were extracted for Magisk/KernelSU/APatch on the host, with contents and permissions verified. In a 390×844 mobile browser preview, the author was visible, no horizontal overflow occurred, the video played muted and looped, paused when scrolled offscreen, and resumed on return. No console errors were observed. Reduced-motion behavior was checked in code/CSS; it was not separately run on Android.
 
-Android-установка этого нового ZIP и отображение карточки в конкретной версии root-менеджера пока не проверены на телефоне. Это смена оформления, а не новое подтверждение Play Integrity или исправление Duck.
+Installation of this new ZIP and its card display in a specific root manager version have not been tested on a phone. This is a visual update, not new Play Integrity evidence or a Duck fix.
 
-Исходники: AlwaysStrong-Repair-1.1-source.zip. Сборка: bash build.sh --variant fork. Сохранены upstream licenses/credits. В следующем публичном релизе versionCode должен быть больше 108.
+Source archive: `AlwaysStrong-Repair-1.1-source.zip`. Build: `bash build.sh --variant fork`. Upstream licenses and credits are preserved. The next public release must use a versionCode greater than 108.

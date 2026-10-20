@@ -4,215 +4,215 @@
 
 # AlwaysStrongFork
 
-**Play Integrity, управление keybox и восстановление — в одном модуле.**
+**Play Integrity, keybox management, and recovery in one module.**
 
-**Автор форка: [@SUKISU_ULTR4](https://t.me/SUKISU_ULTR4)**
+**Fork author: [@SUKISU_ULTR4](https://t.me/SUKISU_ULTR4)**
 
 [![Build](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml/badge.svg)](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/zaigraevstepan7-afk/Alwaysstrongfork)](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-10%2B-green)](#требования)
+[![Android](https://img.shields.io/badge/Android-10%2B-green)](#requirements)
 [![Telegram](https://img.shields.io/badge/Telegram-alwaysstrongfork-26A5E4?logo=telegram)](https://t.me/alwaysstrongfork)
 
-[**Скачать ZIP**](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest) · [Установка](#установка) · [Как проверить результат](#как-проверить-play-integrity) · [Поддержка](#поддержка)
+[**Download ZIP**](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest) · [Installation](#installation) · [Check your results](#how-to-check-play-integrity) · [Support](#support)
 
 </div>
 
-AlwaysStrongFork — форк AlwaysStrong на основе Repair 1.3. Основная сборка объединяет **TEESimulator-RS** и **PlayIntegrityFork**, обновляет fingerprint, управляет keybox и восстанавливает повреждённые локальные файлы. Настройки доступны в WebUI.
+AlwaysStrongFork is an AlwaysStrong fork based on Repair 1.3. The default build combines **TEESimulator-RS** and **PlayIntegrityFork**, updates the fingerprint, manages keyboxes, and recovers damaged local files. Settings are available through WebUI.
 
-Модуль предназначен для работы с Play Integrity на устройствах с root. Итоговые **BASIC / DEVICE / STRONG** определяет проверка на устройстве: наличие keybox или успешное выполнение Action само по себе не означает 3/3.
+The module is intended for Play Integrity on rooted devices. **BASIC / DEVICE / STRONG** results come from an actual check on the device: having a keybox or successfully running Action does not by itself mean 3/3.
 
-## Возможности
+## Features
 
-- **Два компонента в одном модуле.** TEESimulator-RS отвечает за аппаратную аттестацию, PlayIntegrityFork — за fingerprint и связанные параметры Google Play Services.
-- **Обновление fingerprint.** Автоматическое получение Pixel fingerprint, резервные источники и импорт собственного `pif.json` / `pif.prop`.
-- **Управление keybox.** Загрузка по HTTPS, проверка структуры XML / PEM / DER, сохранение полной резервной копии и атомарная замена файла.
-- **Восстановление.** Возврат полной локальной копии при повреждении keybox; отдельный режим ремонта после импорта результата чекера.
-- **Настройка приложений.** Автоматическое обновление списка целей, выбор режима аттестации и keybox для отдельных пакетов.
-- **WebUI.** Светлая, тёмная и системная темы, переводы интерфейса, настройки обновлений, spoof-параметров и security patch.
-- **Контроль фоновой работы.** Блокировки от параллельных записей, ограничения времени загрузочных операций и защита от бесконечных перезапусков движка.
-- **Диагностика.** Сбор логов и раздельное отображение состояния файла keybox и импортированного вердикта Play Integrity.
+- **Two components in one module.** TEESimulator-RS handles hardware attestation; PlayIntegrityFork handles the fingerprint and related Google Play Services parameters.
+- **Fingerprint updates.** Automatic Pixel fingerprint downloads, fallback sources, and custom `pif.json` / `pif.prop` imports.
+- **Keybox management.** HTTPS downloads, XML / PEM / DER structure checks, complete backups, and atomic file replacement.
+- **Recovery.** Restore a complete local backup when a keybox is damaged; a separate repair mode can run after importing a checker result.
+- **Per-app settings.** Automatic target list updates, attestation modes, and keybox assignments for individual packages.
+- **WebUI.** Light, dark, and system themes, interface translations, and settings for updates, spoofing, and security patches.
+- **Background process controls.** Locks against concurrent writes, bounded startup operations, and protection against endless engine restarts.
+- **Diagnostics.** Log collection and separate status indicators for keybox file health and imported Play Integrity verdicts.
 
-## Требования
+## Requirements
 
-| Компонент | Требование |
+| Component | Requirement |
 | --- | --- |
-| Android | Android 10 или новее, SDK 29+. |
-| Архитектура | **ARM64** (`arm64-v8a`) или **ARMv7** (`armeabi-v7a`). |
-| Root-менеджер | Magisk, KernelSU или APatch с поддержкой установки модулей. |
-| Zygisk | Для основного и Inject вариантов нужен работающий Zygisk; на KernelSU / APatch — отдельная совместимая реализация. |
-| Интернет | Для загрузки нового fingerprint и keybox. |
-| WebUI | Совместимый хост WebUI с root-доступом. |
+| Android | Android 10 or later, SDK 29+. |
+| Architecture | **ARM64** (`arm64-v8a`) or **ARMv7** (`armeabi-v7a`). |
+| Root manager | Magisk, KernelSU, or APatch with module installation support. |
+| Zygisk | The default and Inject variants require working Zygisk; KernelSU / APatch need a separate compatible implementation. |
+| Internet | Required to download a new fingerprint or keybox. |
+| WebUI | A compatible WebUI host with root access. |
 
-**x86 / x86_64 в текущей Repair-сборке не поддерживаются:** обязательный runtime `asfetch` поставляется только для ARM. Наличие отдельных x86-библиотек исходных компонентов не меняет это ограничение.
+**x86 / x86_64 are not supported by the current Repair build:** the required `asfetch` runtime is supplied only for ARM. Individual x86 libraries from upstream components do not remove this limitation.
 
-## Какой ZIP выбрать
+## Choose a ZIP
 
-В [Releases](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest) находятся три варианта одной версии. Все используют TEESimulator-RS и один ID модуля — `tricky_store`.
+[Releases](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest) provide three variants of the same version. All use TEESimulator-RS and share the module ID `tricky_store`.
 
-| Вариант | Имя файла | Состав и назначение |
+| Variant | Filename | Contents and purpose |
 | --- | --- | --- |
-| **Основной** | `AlwaysStrong-<версия>.zip` | PlayIntegrityFork + TEESimulator-RS. Начните с него. |
-| **Inject** | `AlwaysStrong-<версия>-inject.zip` | PlayIntegrityFix inject-s + TEESimulator-RS. Альтернативная реализация PIF. |
-| **Lite** | `AlwaysStrong-<версия>-nopif.zip` | TEESimulator-RS без встроенного PIF и собственного spoofing fingerprint. Для конфигурации с отдельным fingerprint-решением или без него. |
+| **Default** | `AlwaysStrong-<version>.zip` | PlayIntegrityFork + TEESimulator-RS. Start here. |
+| **Inject** | `AlwaysStrong-<version>-inject.zip` | PlayIntegrityFix inject-s + TEESimulator-RS. An alternative PIF implementation. |
+| **Lite** | `AlwaysStrong-<version>-nopif.zip` | TEESimulator-RS without bundled PIF or built-in fingerprint spoofing. For use with a separate fingerprint solution, or without one. |
 
-Устанавливается **один вариант за раз**. Файлы ZIP из Releases готовы к установке; распаковывать их перед выбором в root-менеджере не нужно. `SHA256SUMS.txt` содержит контрольные суммы.
+Install **one variant at a time**. Release ZIPs are ready to install; do not extract them before selecting one in your root manager. Checksums are provided in `SHA256SUMS.txt`.
 
-## Установка
+## Installation
 
-1. Скачайте нужный ZIP из [последнего релиза](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest).
-2. Для основного / Inject варианта убедитесь, что Zygisk включён и работает.
-3. Разрешите конфликты с другими PIF / TEE-модулями. Установщик проверяет, например, самостоятельные PlayIntegrityFix/Fork, TrickyStore, TEESimulator, playcurl и некоторые модули подмены props. При активном конфликте он **останавливает установку** и просит устранить его вручную.
-4. В root-менеджере откройте **Модули → Установить из хранилища** и выберите ZIP.
-5. Перезагрузите устройство.
-6. Откройте настройки модуля через совместимый WebUI-хост. При необходимости нажмите **Action**, чтобы вручную обновить конфигурацию.
-7. Проверьте результат в отдельном Play Integrity Checker.
+1. Download a ZIP from the [latest release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest).
+2. For the default / Inject variant, make sure Zygisk is enabled and working.
+3. Resolve conflicts with other PIF / TEE modules. The installer checks for standalone PlayIntegrityFix/Fork, TrickyStore, TEESimulator, playcurl, and certain property spoofing modules. An active conflict **stops installation** and must be resolved manually.
+4. In your root manager, open **Modules → Install from storage** and select the ZIP.
+5. Reboot the device.
+6. Open the module settings through a compatible WebUI host. Use **Action** if you need to refresh the configuration manually.
+7. Check the result in a separate Play Integrity Checker.
 
-Установка через recovery не поддерживается. При обновлении существующей Repair-сборки можно установить ZIP поверх неё: удалять `/data/adb/tricky_store` не требуется.
+Recovery installation is not supported. To upgrade an existing Repair build, install the ZIP over it; there is no need to delete `/data/adb/tricky_store`.
 
-### Первый запуск и WebUI
+### First launch and WebUI
 
-В основной ZIP не включён демонстрационный keybox исходного TEESimulator-RS. При отсутствии полной локальной копии импортируйте свой файл через WebUI или воспользуйтесь загрузкой средствами модуля.
+The default ZIP does not include the upstream TEESimulator-RS demonstration keybox. If no complete local backup exists, import your own file through WebUI or use the module's download function.
 
-На KernelSU / APatch откройте WebUI средствами совместимого менеджера. На Magisk требуется установленный пользователем совместимый WebUI-хост. **Action не устанавливает APK автоматически и не является кнопкой открытия WebUI.**
+On KernelSU / APatch, open WebUI through a compatible manager. Magisk requires a compatible WebUI host installed by the user. **Action does not install an APK automatically and does not open WebUI.**
 
-Action обновляет список целей, получает keybox и fingerprint с учётом пользовательских режимов, применяет настройки и перезапускает связанные процессы Google Play Services / Play Store. После выполнения нужна отдельная проверка результата.
+Action refreshes targets, fetches the keybox and fingerprint according to the selected modes, applies settings, and restarts related Google Play Services / Play Store processes. Run a separate check afterward.
 
-## Как проверить Play Integrity
+## How to check Play Integrity
 
-1. Выполните новую проверку в Play Integrity Checker. Кнопка запуска в WebUI рассчитана на пакет `gr.nikolasspyr.integritycheck`.
-2. Скопируйте **полный JSON результата** из чекера.
-3. Вставьте его в поле импорта результата в WebUI.
-4. Модуль сохранит BASIC / DEVICE / STRONG и время исходной проверки.
+1. Run a new check in Play Integrity Checker. The WebUI launch button targets `gr.nikolasspyr.integritycheck`.
+2. Copy the **complete result JSON** from the checker.
+3. Paste it into the result import field in WebUI.
+4. The module saves BASIC / DEVICE / STRONG and the original check time.
 
-Для импорта принимается результат **за последние 15 минут** с `requestDetails.timestampMillis` и объектом `deviceIntegrity`. Текст, скриншот или перечень галочек вместо JSON не подходят.
+Imports require a result from the **last 15 minutes**, containing `requestDetails.timestampMillis` and a `deviceIntegrity` object. Plain text, screenshots, or a list of checkmarks cannot replace the JSON.
 
-До импорта отображаются `?`. Сохранённый результат показывается с отметкой времени; после 24 часов он считается устаревшим. Это история проверки, а не непрерывное измерение.
+Before import, the indicators show `?`. Saved results include a timestamp and become stale after 24 hours. They represent check history, not continuous measurement.
 
-Парсер принимает уже декодированный JSON: он не расшифровывает Google-токен и не проверяет его подлинность самостоятельно. Используйте результат доверенного чекера. **«Keybox file complete» означает целостность файла, а не подтверждение его доверия Google или прохождения STRONG.**
+The parser accepts already decoded JSON: it does not decrypt a Google token or independently verify its authenticity. Use a trusted checker. **“Keybox file complete” describes file integrity; it does not confirm Google trust or a STRONG verdict.**
 
-### Как работает авторемонт
+### Automatic repair
 
-| Ситуация | Поведение |
+| Situation | Behavior |
 | --- | --- |
-| Текущий keybox отсутствует или повреждён | Проверяются локальные резервные копии и восстанавливается полная копия, если она есть. Явно удалённый пользователем файл автоматически не возвращается. |
-| Импортирован свежий результат 3/3 | Замена по этому результату не требуется. |
-| Импортирован свежий результат с неполным набором вердиктов | При включённом авторемонте выполняется попытка загрузить и проверить кандидат. |
-| Загрузка или проверка кандидата не удалась | Текущий файл сохраняется. |
-| Замена выполнена | Нужно снова запустить чекер; модуль не присваивает себе новый успешный вердикт. |
+| The current keybox is missing or damaged | Local backups are checked and a complete copy is restored if available. A file explicitly deleted by the user is not automatically restored. |
+| A fresh 3/3 result is imported | No replacement is needed for that result. |
+| A fresh result with missing verdicts is imported | If automatic repair is enabled, the module attempts to download and validate a candidate. |
+| Download or candidate validation fails | The current file is preserved. |
+| A replacement succeeds | Run the checker again; the module does not assign itself a new successful verdict. |
 
-Сетевая попытка ремонта выполняется не более одного раза для одного результата и не чаще **одного раза в 6 часов**. Этот механизм не заменяет самостоятельную проверку Play Integrity.
+A network repair attempt is allowed at most once per result and no more than **once every 6 hours**. This mechanism does not replace a new Play Integrity check.
 
-## Настройки
+## Settings
 
-Обычные настройки меняются через WebUI. Фоновое обновление fingerprint и keybox по умолчанию выполняется раз в **3600 секунд**; интервал ограничен диапазоном **60–86400 секунд**.
+Use WebUI for normal settings. Background fingerprint and keybox updates default to **3600 seconds**, with an allowed interval of **60–86400 seconds**.
 
-| Настройка | Что делает |
+| Setting | Behavior |
 | --- | --- |
-| Автообновление fingerprint | Получает новую конфигурацию PIF. Импорт собственного fingerprint отключает его обычную автоматическую замену. |
-| Автопроверка keybox | Загружает и проверяет кандидат; при совпадении содержимого файл не заменяется. |
-| Собственный keybox | Отключает обычную автоматическую загрузку. **Авторемонт — отдельная настройка:** после импорта неуспешного вердикта он может заменить и пользовательский keybox. Отключите авторемонт, если замена не нужна. |
-| Целевые приложения | Управляет пакетами, режимами аттестации и назначенными keybox. |
-| Security patch и spoof-параметры | Позволяют настроить поведение для конкретной прошивки. Изменяйте их, понимая назначение параметра. |
-| Сброс настроек | Возвращает параметры по умолчанию и запускает Action. Текущий keybox, режим собственного keybox и его назначения приложениям сохраняются. |
+| Automatic fingerprint updates | Downloads a new PIF configuration. Importing a custom fingerprint disables its regular automatic replacement. |
+| Automatic keybox checks | Downloads and validates a candidate; identical contents do not trigger replacement. |
+| Custom keybox | Disables regular automatic downloads. **Automatic repair is a separate setting:** an imported failing verdict can still trigger replacement of a custom keybox. Disable automatic repair if you do not want that replacement. |
+| Target apps | Manages packages, attestation modes, and assigned keyboxes. |
+| Security patch and spoofing options | Adjust behavior for a particular ROM. Change an option only when you understand its purpose. |
+| Reset settings | Restores defaults and runs Action. The current keybox, custom keybox mode, and per-app keybox assignments are preserved. |
 
-В Magisk модуль может добавлять записи Google Play и чекеров в DenyList, когда принудительное применение списка отключено. Сам переключатель **Enforce DenyList** модуль не меняет; при включённом enforcement добавление этих записей пропускается.
+On Magisk, the module can add Google Play and checker entries to DenyList when enforcement is disabled. It does not change **Enforce DenyList** itself; these additions are skipped when enforcement is enabled.
 
-### Где находятся данные
+### Data locations
 
-| Путь | Содержимое |
+| Path | Contents |
 | --- | --- |
-| `/data/adb/modules/tricky_store/` | Установленные скрипты, библиотеки и WebUI. |
-| `/data/adb/tricky_store/keybox.xml` | Активный keybox. |
-| `/data/adb/tricky_store/keybox.xml.good` | Полная резервная копия для восстановления. |
-| `/data/adb/tricky_store/alwaysstrong/` | Настройки, состояния, назначения keybox, результаты чекера и логи. |
-| `/data/adb/tricky_store/target.txt` | Список целей аттестации. |
+| `/data/adb/modules/tricky_store/` | Installed scripts, libraries, and WebUI. |
+| `/data/adb/tricky_store/keybox.xml` | Active keybox. |
+| `/data/adb/tricky_store/keybox.xml.good` | Complete recovery backup. |
+| `/data/adb/tricky_store/alwaysstrong/` | Settings, state, keybox assignments, checker results, and logs. |
+| `/data/adb/tricky_store/target.txt` | Attestation target list. |
 
-## Если что-то не работает
+## Troubleshooting
 
-| Симптом | Что проверить |
+| Symptom | What to check |
 | --- | --- |
-| Нет DEVICE / STRONG | Работу Zygisk, активные конфликты, состояние keybox, доступность источников и результат новой проверки. Состояние файла не показывает, отозван ли ключ Google. |
-| В WebUI стоят `?` | Импортируйте полный свежий JSON из чекера. После замены keybox выполните новую проверку. |
-| Установщик сообщает о конфликте | Устраните указанный конфликт вручную и повторите установку. Модуль не удаляет другие модули автоматически. |
-| Action не обновил данные | Посмотрите сообщения Action и логи. Проверьте сеть и режимы собственного keybox / fingerprint. |
-| WebUI не открывается | Проверьте WebUI-хост и его root-доступ. После обновления полностью закройте старое окно и откройте заново. |
-| Модуль отключился после нескольких загрузок | Проверьте `alwaysstrong/boot-state`, `boot-safe` и логи. Защита отключает этот модуль после трёх попыток загрузки без стабильного checkpoint. |
-| Движок перестал запускаться до перезагрузки | Supervisor приостанавливает его после трёх быстрых завершений либо повторных перезапусков `keystore2`. Изучите причину по логам. |
+| DEVICE / STRONG is missing | Working Zygisk, active conflicts, keybox health, source availability, and a fresh check result. File health does not indicate whether Google has revoked a key. |
+| WebUI shows `?` | Import the complete, fresh checker JSON. Run a new check after replacing the keybox. |
+| The installer reports a conflict | Resolve the named conflict manually and install again. The module does not automatically remove other modules. |
+| Action did not refresh data | Read its output and logs. Check the network and custom keybox / fingerprint modes. |
+| WebUI does not open | Check your WebUI host and its root access. After updating, fully close the old window and reopen it. |
+| The module disabled itself after several boots | Check `alwaysstrong/boot-state`, `boot-safe`, and the logs. The guard disables this module after three boot attempts without a stable checkpoint. |
+| The engine stopped restarting until reboot | The supervisor pauses after three rapid exits or repeated `keystore2` restarts. Investigate the logs. |
 
-Для сбора диагностики используйте кнопку **Собрать логи** или выполните в root-shell:
+Use **Collect logs** in WebUI or run this command in a root shell:
 
 ```sh
 sh /data/adb/modules/tricky_store/collect_logs.sh
 ```
 
-Скрипт выводит путь к текстовому файлу: обычно это `/sdcard/AlwaysStrong-log*.txt`, при недоступности общего хранилища — каталог конфигурации. В отчёт не включается содержимое приватных ключей keybox, но может попасть список целевых приложений. Просмотрите файл перед публикацией.
+The script prints the report path: usually `/sdcard/AlwaysStrong-log*.txt`, or the configuration directory if shared storage is unavailable. Reports exclude keybox private key contents but may include the target app list. Review the file before sharing it.
 
-Удаление выполняется через root-менеджер с последующей перезагрузкой. Скрипт удаления очищает настройки, состояния и логи `alwaysstrong/`; это отличается от обновления поверх существующей установки.
+Uninstall through your root manager, then reboot. The uninstall script removes settings, state, and logs under `alwaysstrong/`; this differs from installing an update over the existing module.
 
-## Сборка и релизы
+## Builds and releases
 
 ### GitHub Actions
 
-[Build AlwaysStrongFork](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml) запускается при push в `main`, для pull request и вручную:
+[Build AlwaysStrongFork](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml) runs on pushes to `main`, pull requests, and manual dispatch:
 
-1. Проверяет синтаксис shell и JavaScript.
-2. Собирает host-версию `asfetch` и выполняет **40 Python + 6 Rust тестов**.
-3. Пересобирает Android `asfetch` для ARM64 / ARMv7 через NDK r27c. Watcher берётся из сохранённых prebuilt-файлов.
-4. Собирает основной, Inject и Lite ZIP, проверяет их структуру и формирует `SHA256SUMS.txt`.
+1. Checks shell and JavaScript syntax.
+2. Builds host `asfetch` and runs **40 Python + 6 Rust tests**.
+3. Rebuilds Android `asfetch` for ARM64 / ARMv7 with NDK r27c. Watcher uses the committed prebuilts.
+4. Builds the default, Inject, and Lite ZIPs, verifies their structure, and generates `SHA256SUMS.txt`.
 
-После успешного push-build ветки `main` workflow [Release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/release.yml) публикует новую версию из `module/module.prop`, прикрепляя три установочных ZIP и контрольные суммы. Уже опубликованная версия повторно не заменяется. Для следующего выпуска нужно повысить `version` и `versionCode` и добавить заметки `releases/<version>.md`.
+After a successful `main` push build, the [Release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/release.yml) workflow publishes the version from `module/module.prop` with three installation ZIPs and checksums. For an already published version, it synchronizes the release title and notes while preserving the existing assets. To publish a new version, increment `version` and `versionCode` and add `releases/<version>.md`.
 
-Тестовые ZIP также доступны как artifact `AlwaysStrongFork-module-zip`. **Внешний архив artifact нужно распаковать**, затем установить один из ZIP внутри. Артефакты Actions хранятся 90 дней; опубликованные установочные файлы находятся в Releases.
+Test ZIPs are also available in the `AlwaysStrongFork-module-zip` artifact. **Extract the outer artifact archive**, then install one of the ZIPs inside. Actions artifacts are retained for 90 days; published installation files are available in Releases.
 
-### Локальная сборка
+### Local builds
 
-Нужны Bash, `curl` или `wget`, `zip`, `unzip`, Perl и средство подсчёта SHA256. Сборщик загружает закреплённые upstream-компоненты, накладывает файлы проекта и создаёт ZIP в `out/`.
+You need Bash, `curl` or `wget`, `zip`, `unzip`, Perl, and a SHA256 utility. The builder downloads pinned upstream components, overlays the project files, and creates ZIPs in `out/`.
 
 ```bash
-bash build.sh --variant fork          # основной
+bash build.sh --variant fork          # Default
 bash build.sh --variant inject        # Inject
 bash build.sh --variant nopif         # Lite
 bash build.sh --variant fork,inject,nopif
 ```
 
-Для пересборки нативных компонентов дополнительно нужны Rust, Android targets и NDK. Скрипты находятся в [`scripts/`](scripts/), исходники — в [`native/`](native/). Движки TrickyStoreOSS / JingMatrix TEESimulator также остаются в исходниках как дополнительные варианты; в стандартный релиз они не входят.
+Rebuilding native components also requires Rust, Android targets, and the NDK. Scripts are in [`scripts/`](scripts/), with sources in [`native/`](native/). TrickyStoreOSS / JingMatrix TEESimulator engines remain available in the source as additional variants; they are not included in standard releases.
 
-Проверка готовых архивов:
+Verify the completed archives:
 
 ```bash
 python3 scripts/verify-module-zip.py out/AlwaysStrong-*.zip
 (cd out && sha256sum -c SHA256SUMS.txt)
 ```
 
-`SHA256SUMS.txt` автоматически создаётся в CI; для локальной сборки его можно сформировать командой `(cd out && sha256sum AlwaysStrong-*.zip > SHA256SUMS.txt)`.
+CI generates `SHA256SUMS.txt` automatically. For a local build, create it with `(cd out && sha256sum AlwaysStrong-*.zip > SHA256SUMS.txt)`.
 
-## Авторы и исходные компоненты
+## Authors and upstream components
 
 <div align="center">
-<img src="screenshots/built-on-fork.png" alt="Авторы и компоненты AlwaysStrongFork" width="900">
+<img src="screenshots/built-on-fork.png" alt="AlwaysStrongFork authors and upstream components" width="900">
 </div>
 
-| Автор | Вклад |
+| Author | Contribution |
 | --- | --- |
-| **[@SUKISU_ULTR4](https://t.me/SUKISU_ULTR4)** | **Автор AlwaysStrongFork**, развитие форка и интерфейса на базе Repair. Репозиторий: [zaigraevstepan7-afk](https://github.com/zaigraevstepan7-afk). |
-| [Evokerr](https://gitlab.com/Evokerr/AlwaysStrong) | Исходный AlwaysStrong и объединение компонентов. |
-| [JingMatrix](https://github.com/JingMatrix/TEESimulator) | Оригинальный TEESimulator. |
+| **[@SUKISU_ULTR4](https://t.me/SUKISU_ULTR4)** | **AlwaysStrongFork author**, fork development and the Repair-based interface. GitHub: [zaigraevstepan7-afk](https://github.com/zaigraevstepan7-afk). |
+| [Evokerr](https://gitlab.com/Evokerr/AlwaysStrong) | Original AlwaysStrong and component integration. |
+| [JingMatrix](https://github.com/JingMatrix/TEESimulator) | Original TEESimulator. |
 | [Enginex0](https://github.com/Enginex0/TEESimulator-RS) | TEESimulator-RS. |
 | [osm0sis](https://github.com/osm0sis/PlayIntegrityFork) | PlayIntegrityFork. |
 
-Также использованы работы **KOWX712** (PlayIntegrityFix inject-s), **chiteroman** (Play Integrity Fix), **5ec1cff** (TrickyStore), **beakthoven** (TrickyStoreOSS), **Displax**, **daboynb**, **LSPosed / LSPlt** и **ring**. Авторство и лицензии исходных компонентов сохранены.
+The project also uses work by **KOWX712** (PlayIntegrityFix inject-s), **chiteroman** (Play Integrity Fix), **5ec1cff** (TrickyStore), **beakthoven** (TrickyStoreOSS), **Displax**, **daboynb**, **LSPosed / LSPlt**, and **ring**. Upstream attribution and licenses are preserved.
 
-## Поддержка
+## Support
 
-- Канал форка: **[t.me/alwaysstrongfork](https://t.me/alwaysstrongfork)**.
-- Ошибки: [GitHub Issues](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/issues). Укажите версию, Android / прошивку, root-менеджер, реализацию Zygisk и приложите просмотренный диагностический лог.
-- Подробности Repair: [REPAIR.md](REPAIR.md), [REPAIR_REVIEW.md](REPAIR_REVIEW.md), [описание WebUI 1.3](RELEASE_1_3.md). Это исторические материалы; актуальные инструкции установки и выпуска находятся в этом README.
+- Fork channel: **[t.me/alwaysstrongfork](https://t.me/alwaysstrongfork)**.
+- Bugs: [GitHub Issues](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/issues). Include the module version, Android / ROM, root manager, Zygisk implementation, and a reviewed diagnostic log.
+- Repair details: [REPAIR.md](REPAIR.md), [REPAIR_REVIEW.md](REPAIR_REVIEW.md), and [WebUI 1.3 notes](RELEASE_1_3.md). These are historical documents; use this README for current installation and release instructions.
 
-## Ограничения и лицензия
+## Limitations and license
 
-Модуль не создаёт доверенный Google keybox, не возвращает физическую блокировку загрузчика и не гарантирует скрытие root от каждого приложения. Доступность источников, отзыв ключей, изменения проверок и особенности прошивки влияют на результат. Widevine L1 этим форком не восстанавливается.
+The module does not create a Google-trusted keybox, physically relock the bootloader, or guarantee root hiding from every app. Source availability, key revocation, changes to checks, and ROM differences affect the outcome. This fork does not restore Widevine L1.
 
-Успешные тесты сборки не заменяют проверку загрузки и работы на конкретном Android-устройстве. Установка релизных ZIP на физическом телефоне в рамках CI не выполняется.
+Passing build tests does not replace boot and runtime testing on a specific Android device. CI does not install release ZIPs on a physical phone.
 
-**GPL-3.0** — см. [LICENSE](LICENSE). Лицензии сторонних компонентов приведены в их исходных проектах.
+**GPL-3.0** — see [LICENSE](LICENSE). Third-party component licenses are available in their respective upstream projects.

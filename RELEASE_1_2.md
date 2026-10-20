@@ -1,15 +1,15 @@
 # AlwaysStrong Repair 1.2
 
-Обновление интерфейса, versionCode 109, на базе Repair 1.1/Repair 1.
+An interface update, versionCode 109, based on Repair 1.1 / Repair 1.
 
-- В разделе «Сообщество и поддержка» оставлена одна ссылка: https://t.me/alwaysstrongfork.
-- Удалены обе прежние карточки Telegram и кнопка покупки кофе, связанные строки переводов и стиль значка кофе.
-- support в module.prop и канал в Action ведут на AlwaysStrong Fork. Метаданные donate удалены.
-- Ник @SUKISU_ULTR4 первым в авторах, новый баннер и локальное видео сохранены. Upstream-авторы остаются указаны.
-- Работа движка, ключей, проверок Play Integrity и защиты загрузки не менялась.
+- The Community and Support section contains one link: https://t.me/alwaysstrongfork.
+- Both previous Telegram cards and the Buy Me a Coffee button were removed, along with their translation strings and coffee icon styling.
+- The `support` field in `module.prop` and the channel in Action point to AlwaysStrong Fork. Donation metadata was removed.
+- @SUKISU_ULTR4 remains first in the author list. The new banner, local video, and upstream credits are preserved.
+- Engine behavior, keys, Play Integrity checks, and boot protection are unchanged.
 
-Установка: сразу поверх текущей Repair 1 или Repair 1.1 через root-менеджер, затем перезагрузка. Промежуточная установка 1.1 не требуется.
+Installation: install directly over Repair 1 or Repair 1.1 through your root manager, then reboot. Installing 1.1 first is unnecessary.
 
-Проверено: ZIP CRC; содержимое ZIP совпадает со stage и исходниками; JS/shell syntax; три существующих installer/WebUI tests. В живом мобильном предпросмотре 390x700 у секции сообщества ровно одна ссылка с правильным адресом; кнопки кофе нет, ошибок JS не получено. Движок, boot/service workers, ключевые helpers, native библиотеки, DEX и медиа побайтово совпадают с Repair 1.1. Проверка на физическом Android для этого ZIP не выполнялась. Это обновление интерфейса, а не исправление Soter или новое подтверждение Play Integrity.
+Checks: ZIP CRC, ZIP contents matching the build stage and sources, JavaScript/shell syntax, and the three existing installer/WebUI tests. A live 390×700 mobile preview showed exactly one community link with the correct URL, no coffee button, and no JavaScript errors. The engine, boot/service workers, key helpers, native libraries, DEX, and media are byte-for-byte identical to Repair 1.1. This ZIP was not tested on a physical Android device. It is an interface update, not a Soter fix or new Play Integrity evidence.
 
-Исходники: AlwaysStrong-Repair-1.2-source.zip. Сборка: bash build.sh --variant fork. Сохранены исходные лицензии и авторство. Следующий публичный versionCode должен быть больше 109.
+Source archive: `AlwaysStrong-Repair-1.2-source.zip`. Build: `bash build.sh --variant fork`. Original licenses and attribution are preserved. The next public versionCode must be greater than 109.

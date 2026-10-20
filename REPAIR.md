@@ -1,63 +1,63 @@
 # AlwaysStrong Repair 1
 
-Неофициальная исправленная сборка AlwaysStrong v1.0.5. Исходная база: `Evokerr/AlwaysStrong`, commit `72309a7c5117f28f44a1cd72b89ff1c5302208bf`.
+An unofficial repaired build of AlwaysStrong v1.0.5. Upstream base: `Evokerr/AlwaysStrong`, commit `72309a7c5117f28f44a1cd72b89ff1c5302208bf`.
 
-## Что исправлено
+## Fixes
 
-Поводом был оборванный `keybox.xml`: 954 байта, начало сертификата без его окончания и без закрывающих XML-тегов. После восстановления полной локальной копии и отключения трёх spoof-флагов владелец телефона подтвердил Basic / Device / Strong в отдельном Play Integrity Checker.
+The original issue was a truncated `keybox.xml`: 954 bytes, containing the beginning of a certificate without its ending or closing XML tags. After restoring a complete local copy and disabling three spoofing flags, the phone owner reported Basic / Device / Strong in a separate Play Integrity Checker.
 
-В этой сборке:
+This build provides:
 
-- загрузка проходит проверку завершённости HTTP-ответа, Base64, XML, PEM и длины DER до замены keybox;
-- файл заменяется атомарно, предыдущая полная копия сохраняется;
-- повреждённый файл восстанавливается из полной локальной резервной копии;
-- `spoofProvider`, `spoofSignature`, `spoofVendingSdk` при первой миграции и явном сбросе настроек устанавливаются в `0` для Fork;
-- режим личного keybox и остановленная регулярная загрузка сохраняются при обновлении и сбросе настроек;
-- интерфейс отдельно показывает состояние файла и импортированный результат Play Integrity с датой;
-- свежий импортированный результат ниже 3/3 может запустить ограниченную попытку обновления;
-- конфликты модулей показываются явно; автоматическое удаление других модулей исключено из изменённых путей установки и проверки;
-- по умолчанию отключено подавление диагностических логов.
+- HTTP response completeness, Base64, XML, PEM, and DER length validation before keybox replacement;
+- atomic replacement, preserving the previous complete copy;
+- recovery of damaged files from a complete local backup;
+- `spoofProvider`, `spoofSignature`, and `spoofVendingSdk` set to `0` for Fork during the first migration and explicit settings reset;
+- preservation of custom keybox mode and disabled regular downloads during updates and resets;
+- separate displays for file health and timestamped imported Play Integrity results;
+- a bounded refresh attempt triggered by a fresh imported result below 3/3;
+- explicit module conflicts, without automatically removing other modules in the modified installation and checking paths;
+- diagnostic log suppression disabled by default.
 
-Проверка структуры файла не подтверждает доверие Google к сертификатам, срок действия, отсутствие отзыва или Play Integrity. Ядра TEESimulator-RS и PlayIntegrityFork взяты из закреплённых upstream-артефактов. Собственный загрузчик asfetch пересобран из изменённого Rust-кода для ARM64 и ARMv7.
+Structural validation does not establish Google trust, certificate validity periods, revocation status, or Play Integrity. TEESimulator-RS and PlayIntegrityFork engines come from pinned upstream artifacts. The project's asfetch downloader was rebuilt from modified Rust sources for ARM64 and ARMv7.
 
-## Установка
+## Installation
 
-Сборка предназначена для Magisk, KernelSU и APatch на ARM64/ARMv7, Android 10+. Для PIF нужен работающий Zygisk: встроенный Magisk либо совместимый провайдер для KernelSU/APatch. WebUI открывается через поддерживающий его менеджер или уже установленный совместимый хост.
+This build targets Magisk, KernelSU, and APatch on ARM64/ARMv7, Android 10+. PIF requires working Zygisk: Magisk's built-in implementation or a compatible provider for KernelSU/APatch. Open WebUI through a supporting manager or an already installed compatible host.
 
-Комплектный native helper нужен также для системных блокировок записи. Установщик проверяет его запуск до изменения личных настроек и keybox; без работающего helper запись отклоняется. Рабочий движок во время staged update не останавливается.
+The bundled native helper also provides system write locks. The installer verifies that it starts before changing personal settings or the keybox; writes are rejected without a working helper. A staged update does not stop the currently running engine.
 
-1. Скопировать установочный ZIP на телефон.
-2. В текущем root-менеджере выбрать установку ZIP **поверх существующего AlwaysStrong** с ID `tricky_store`. Предварительное удаление запускает штатный uninstall и может удалить конфигурацию.
-3. Перезагрузить телефон.
-4. Открыть WebUI. Проверить состояние keybox, затем запустить отдельный Play Integrity Checker.
+1. Copy the installation ZIP to the phone.
+2. In the current root manager, install it **over the existing AlwaysStrong** module with ID `tricky_store`. Uninstalling first runs the normal uninstall procedure and may remove configuration.
+3. Reboot the phone.
+4. Open WebUI, check keybox health, and run a separate Play Integrity Checker.
 
-Установка новой сборки на телефоне ещё должна быть проверена пользователем. Проверки на компьютере и успешная упаковка ZIP не заменяют её.
+Installation of the new build still needs verification on the user's phone. Host checks and successful ZIP packaging do not replace that test.
 
-## Результат именно твоего чекера
+## Importing a checker result
 
-Поддержан запуск `gr.nikolasspyr.integritycheck/.MainActivity`. В проверенных исходниках приложения есть меню **JSON response → Copy JSON**. Автоматического экспорта в root-модуль это приложение не предоставляет.
+Launching `gr.nikolasspyr.integritycheck/.MainActivity` is supported. The inspected app sources provide **JSON response → Copy JSON**. The app does not automatically export results to a root module.
 
-После новой проверки:
+After running a new check:
 
-1. В чекере открыть меню ⋮ → JSON response → Copy JSON.
-2. В WebUI модуля раскрыть «Передать результат из чекера».
-3. Вставить JSON и нажать «Применить результат» в течение 15 минут после проверки.
+1. In the checker, open ⋮ → JSON response → Copy JSON.
+2. In the module's WebUI, expand the checker result import section.
+3. Paste the JSON and apply it within 15 minutes of the check.
 
-Модуль читает точные `MEETS_BASIC_INTEGRITY`, `MEETS_DEVICE_INTEGRITY`, `MEETS_STRONG_INTEGRITY` и исходное время `requestDetails.timestampMillis`. Отметки означают **сохранённый результат из чекера**. Через сутки они становятся неизвестными. JSON не является самостоятельно проверяемой модулем подписью Google: источник результата — приложение и его сервер.
+The module reads the exact `MEETS_BASIC_INTEGRITY`, `MEETS_DEVICE_INTEGRITY`, and `MEETS_STRONG_INTEGRITY` labels and the original `requestDetails.timestampMillis`. Indicators represent a **saved checker result** and become unknown after one day. The module does not independently verify a Google signature in this JSON; the app and its server provide the result.
 
-Пустой `deviceIntegrity` с корректным свежим временем означает 0/3: Google может не включать массив verdict при отрицательном результате. Ошибка API, повреждённый JSON или отсутствие обязательных полей не считаются отрицательной проверкой. Более старый или уже обработанный timestamp не заменяет сохранённый результат.
+An empty `deviceIntegrity` with a valid, fresh timestamp means 0/3: Google may omit the verdict array for a negative result. API errors, malformed JSON, and missing required fields are not treated as failed integrity checks. An older or already processed timestamp does not replace the saved result.
 
-Когда свежий результат ниже 3/3 и включён переключатель автовосстановления, допускается одна попытка загрузки на результат, не чаще раза за шесть часов. Эта отдельная попытка может заменить и личный keybox, сохранив предыдущую полную копию. Режим личного keybox остаётся включённым, поэтому обычные ежечасные загрузки по-прежнему остановлены. Переключатель автовосстановления отключает такую замену по результату чекера. После обновления файла нужно выполнить новую проверку: скачивание само по себе не подтверждает возвращение Strong.
+When a fresh result is below 3/3 and automatic repair is enabled, one download attempt is permitted per result, at most once every six hours. This separate attempt can replace a custom keybox while preserving the previous complete copy. Custom keybox mode remains enabled, so regular hourly downloads stay disabled. Turn off automatic repair to prevent replacement triggered by checker results. After updating the file, run a new check: downloading alone does not confirm that Strong has returned.
 
-Для внешней автоматизации предусмотрен файл `alwaysstrong/verdict-inbox.json` с полным свежим JSON от проверяющего приложения/сервера. При наличии файла служба его импортирует. Сам Play Integrity Checker этот файл не записывает. Ошибку сети/API нельзя заменять выдуманным отрицательным verdict.
+External automation can supply `alwaysstrong/verdict-inbox.json` containing the complete, fresh JSON from a checking app/server. The service imports this file when present. Play Integrity Checker itself does not write it. Do not substitute a fabricated negative verdict for a network/API error.
 
-## Проверка на телефоне
+## Verification on the phone
 
-Ни один тест не гарантирует неизменный Strong после будущих изменений Google. Можно доказать исправление конкретной ошибки и работу текущей сборки в текущем состоянии телефона.
+No test guarantees unchanged Strong results after future Google changes. Tests can establish that a specific fault is fixed and that the current build works with the phone's current state.
 
-### 1. Версия, keybox и флаги
+### 1. Version, keybox, and flags
 
-В MT Manager открыть терминал и получить root:
+Open a terminal in MT Manager and obtain root:
 
 ```sh
 su
@@ -72,11 +72,11 @@ sh "$AS_MOD/as_store.sh" get custom_keybox
 sh "$AS_MOD/as_store.sh" get auto_keybox
 ```
 
-Ожидается версия Repair, `complete`, `keybox_check_rc=0`, три нужных флага равны `0`. Для ранее восстановленного личного keybox ожидаются `custom_keybox=1` и `auto_keybox=0`, пока ты сам их не менял.
+Expected: a Repair version, `complete`, `keybox_check_rc=0`, and all three specified flags set to `0`. For a previously restored custom keybox, expect `custom_keybox=1` and `auto_keybox=0` unless you changed them.
 
-### 2. Движок загружен
+### 2. Engine loaded
 
-Для комплектного TEESimulator-RS:
+For the bundled TEESimulator-RS:
 
 ```sh
 pidof TEESimulator
@@ -84,17 +84,17 @@ AS_KEYSTORE_PID=$(pidof keystore2)
 grep -F libTEESimulator.so "/proc/$AS_KEYSTORE_PID/maps"
 ```
 
-Ожидаются PID и запись о библиотеке. Это подтверждает работу процесса и загрузку библиотеки, но ещё не прохождение проверки Google.
+Expect a PID and a library entry. These confirm the process is running and the library is loaded; they do not prove a successful Google check.
 
-### 3. Настоящие три результата
+### 3. Actual integrity results
 
-В `gr.nikolasspyr.integritycheck` нажать кнопку новой проверки. Нужны все три `MEETS_*_INTEGRITY`, полученные именно сейчас. Скопировать JSON в WebUI и сверить дату и три отметки. При 3/3 попытка замены по этому результату не требуется.
+Run a new check in `gr.nikolasspyr.integritycheck`. All three `MEETS_*_INTEGRITY` labels must come from that fresh request. Copy the JSON into WebUI and compare the date and three indicators. A 3/3 result does not require a replacement attempt.
 
-Повторить новую проверку после перезагрузки и после полного интервала автоматического обновления. Если результат сохраняется, флаги остаются правильными, файл полный и ошибок движка нет, подтверждён и сценарий повторного запуска, а не только один удачный запрос.
+Repeat after a reboot and after a complete automatic update interval. If the result holds, flags remain correct, the file stays complete, and no engine errors occur, this verifies the restart scenario as well as a single successful request.
 
-### 4. Загрузка без замены рабочего файла
+### 4. Download without replacing the live file
 
-Загрузка проверяется в отдельном приватном каталоге через `AS_CFG_ROOT`. Команда ниже не предназначена для замены текущего keybox:
+Test downloads in a separate private directory using `AS_CFG_ROOT`. The following command is not intended to replace the active keybox:
 
 ```sh
 umask 077
@@ -114,13 +114,13 @@ AS_AFTER=$(sha256sum "$AS_CFG/keybox.xml" | cut -d' ' -f1)
 rm -rf "$AS_TEST_DIR"
 ```
 
-`download_rc=0` означает принятую новую загрузку в тестовый каталог, `2` — совпадающий файл. `1` означает отказ загрузки/проверки: это повод проверить источник и сеть; рабочий keybox должен сохраниться. `scratch_keybox_rc=0` подтверждает полноту файла в тестовом каталоге, `LIVE_KEYBOX_UNCHANGED` — неизменность рабочего файла. Закрывать глаза на `download_rc=1` и называть загрузку успешной нельзя.
+`download_rc=0` means a new download was accepted in the test directory; `2` means the file was identical. `1` means download/validation failed: inspect the source and network; the active keybox should remain intact. `scratch_keybox_rc=0` confirms a complete test file, and `LIVE_KEYBOX_UNCHANGED` confirms the live file did not change. Do not report a download as successful when `download_rc=1`.
 
-Не нужно повреждать рабочий keybox или очищать данные Google Play ради теста. Повреждение, оборванная передача, сохранение предыдущего файла, восстановление резервной копии и конкурентные записи проверяются на изолированных тестовых данных.
+There is no need to damage the live keybox or clear Google Play data for testing. Corruption, interrupted transfers, preservation of previous files, backup recovery, and concurrent writes are tested with isolated data.
 
-### 5. Доказать исправление именно обрыва файла
+### 5. Verify recovery from truncation
 
-Этот тест специально обрезает **только отдельную тестовую копию** до 954 байт и восстанавливает её из полной копии. Рабочий файл используется только для чтения:
+This test truncates **only a separate test copy** to 954 bytes, then restores it from a complete copy. The live file is read only:
 
 ```sh
 umask 077
@@ -137,31 +137,31 @@ cmp -s "$AS_TEST_DIR/keybox.xml" "$AS_CFG/keybox.xml" && echo 'RESTORED_COPY_MAT
 rm -rf "$AS_TEST_DIR"
 ```
 
-Ожидается последовательность: `invalid`, сообщение о восстановлении, `recovery_rc=0`, `complete`, `RESTORED_COPY_MATCHES`. Так проверяются на твоём Android валидатор, выбор резервной копии, системная блокировка и замена файла, без повреждения рабочего keybox.
+Expected sequence: `invalid`, a recovery message, `recovery_rc=0`, `complete`, and `RESTORED_COPY_MATCHES`. This exercises the validator, backup selection, system locking, and replacement on Android without damaging the active keybox.
 
-### 6. Если что-то не сходится
+### 6. If results differ
 
-Собрать новый лог штатной кнопкой WebUI или командой:
+Collect a fresh log using the WebUI button or:
 
 ```sh
 sh /data/adb/modules/tricky_store/collect_logs.sh
 ```
 
-Полученный `.txt` — файл для чтения, а не команда. Для вывода использовать `cat /sdcard/ИМЯ_ПОЛУЧЕННОГО_ФАЙЛА.txt`. Содержимое `keybox.xml`, `hbk` и приватных ключей публиковать для диагностики не требуется.
+The resulting `.txt` is a file to read, not a command. Display it with `cat /sdcard/GENERATED_FILENAME.txt`. Diagnostic reports do not require publishing `keybox.xml`, `hbk`, or private key contents.
 
-## Загрузка, защита от бутлупа и откат
+## Startup, bootloop protection, and rollback
 
-По присланным владельцем скриншоту и выводу терминала исходная Repair 1 установлена: Action завершился, keybox имеет статус complete, TEESimulator запущен, счётчик дошёл до attempts=0. Текущий ZIP дополнительно содержит авторство @SUKISU_ULTR4; его повторная установка ещё не подтверждена. На компьютере прошли 40 Python-тестов и 6 Rust-тестов, включая зависание раннего worker, падения daemon, занятые блокировки и повреждённый keybox. Это не даёт 100% гарантии загрузки OxygenOS: нативные PIF/TEE-библиотеки остаются зависимыми от прошивки и Zygisk.
+The owner's screenshot and terminal output reported installation of the original Repair 1: Action completed, keybox health was complete, TEESimulator was running, and the counter reached `attempts=0`. The subsequent ZIP also includes @SUKISU_ULTR4 attribution; its reinstallation was not yet confirmed in this historical report. Host checks passed 40 Python and 6 Rust tests, including a stalled early worker, daemon crashes, occupied locks, and a damaged keybox. This does not guarantee OxygenOS startup: native PIF/TEE libraries remain dependent on the ROM and Zygisk.
 
-Ранний blocking worker ограничен шестью секундами; миграция и восстановление перенесены в service с отдельным пределом 20 секунд. Ожидание Android ограничено 180 секундами. Сетевая Action запускается после загрузки и имеет предел 480 секунд. Повторный запуск service или TEE supervisor не создаёт второй комплект процессов.
+The early blocking worker has a six-second deadline. Migration and recovery run in the service with a separate 20-second limit. Android startup waiting is bounded at 180 seconds. Network Action runs after boot and has a 480-second limit. Repeated service or TEE supervisor launches do not create duplicate process sets.
 
-Три быстрых падения TEE или два наблюдаемых изменения PID keystore2 за минуту приостанавливают TEE до следующей загрузки. Три разных запуска Android без контрольной точки стабильности отключают только этот модуль. Контрольная точка ставится через две минуты после `sys.boot_completed=1`; три намеренно быстрых перезагрузки тоже могут включить защиту.
+Three rapid TEE exits or two observed keystore2 PID changes within a minute pause TEE until the next boot. Three distinct Android boots without a stable checkpoint disable only this module. The checkpoint is set two minutes after `sys.boot_completed=1`; three intentionally rapid reboots can also trigger protection.
 
-Повреждённый keybox не передаётся в запуск TEE. Записи в boot/vbmeta, блокировки загрузчика, удаления ключей экрана блокировки и операции Widevine provisioning в boot-пути этой сборки отсутствуют.
+A damaged keybox is not passed to TEE startup. This build's boot path does not write boot/vbmeta partitions, lock the bootloader, delete screen-lock keys, or perform Widevine provisioning.
 
-### Проверка после установки
+### Post-installation checks
 
-Установить ZIP поверх текущего `tricky_store`, без предварительного удаления. После загрузки подождать минимум две минуты после появления рабочего стола, затем в root-терминале:
+Install the ZIP over the current `tricky_store` without uninstalling first. After boot, wait at least two minutes after the launcher appears, then run in a root terminal:
 
 ```sh
 sh /data/adb/modules/tricky_store/boot_safety.sh status
@@ -169,11 +169,11 @@ cat /data/adb/tricky_store/alwaysstrong/logs/boot-prepare.log
 cat /data/adb/tricky_store/alwaysstrong/logs/attest-safety.log 2>/dev/null
 ```
 
-Нормальное состояние: `attempts=0`, нет `safe=1` и `attestation_paused=1`. Отсутствующий `attest-safety.log` допустим: файл создаётся при срабатывании защиты. Затем выполнить проверки keybox, движка и настоящего verdict из предыдущих разделов. Повторить после ещё одной обычной перезагрузки и полного интервала обновления. Если есть зависания, пропала разблокировка, биометрия, Wi-Fi или приложения падают, сначала отключить модуль и перезагрузиться.
+Normal state: `attempts=0`, without `safe=1` or `attestation_paused=1`. A missing `attest-safety.log` is acceptable: it is created when protection triggers. Then check the keybox, engine, and actual verdict as described above. Repeat after another normal reboot and a full update interval. If the device hangs, unlocking, biometrics, or Wi-Fi stops working, or apps crash, disable the module and reboot first.
 
-### Аварийное отключение с сохранением файлов
+### Emergency disable while preserving files
 
-В root-менеджере выключить AlwaysStrong и перезагрузить телефон. Если доступен root-терминал, эквивалент:
+Disable AlwaysStrong in the root manager and reboot. With a root terminal available, the equivalent is:
 
 ```sh
 su
@@ -183,22 +183,22 @@ done
 reboot
 ```
 
-Если Android не загружается, использовать режим отключения модулей своего менеджера: [KernelSU](https://kernelsu.org/guide/rescue-from-bootloop.html), [APatch](https://apatch.dev/rescue-bootloop.html). Для KernelSU официальная инструкция требует нажать и отпустить Volume Down более трёх раз после первого экрана загрузки до boot animation. Режим менеджера отключает все его модули; это отличается от собственного предохранителя AlwaysStrong, отключающего только `tricky_store`.
+If Android does not boot, use your manager's module rescue mode: [KernelSU](https://kernelsu.org/guide/rescue-from-bootloop.html), [APatch](https://apatch.dev/rescue-bootloop.html). The KernelSU instructions cited in the original review require pressing and releasing Volume Down more than three times after the first boot screen and before the boot animation. The manager's rescue mode disables all its modules, whereas AlwaysStrong's own guard disables only `tricky_store`. Refer to the linked manager documentation for current rescue instructions.
 
-При уже доступном ADB и работающем root можно выполнить с компьютера:
+If ADB and working root are already available, run from a computer:
 
 ```sh
 adb shell su -c 'touch /data/adb/modules/tricky_store/disable'
 adb reboot
 ```
 
-ADB здесь не был подключён и эти команды на твоём телефоне не выполнялись. В Recovery тот же файл `disable` можно создать только если `/data` доступен и расшифрован.
+ADB was not connected during this review, and these commands were not run on the owner's phone. In recovery, the same `disable` file can be created only when `/data` is accessible and decrypted.
 
-Для отката выбирать **Disable + reboot**. Штатное удаление upstream-модуля удаляет его config и `persistent_keys`. Пауза daemon сама по себе не выгружает уже внедрённую библиотеку из keystore2; для полного отключения также нужна перезагрузка.
+Use **Disable + reboot** for rollback. The upstream uninstall procedure removes its configuration and `persistent_keys`. Pausing the daemon does not unload a library already injected into keystore2; a reboot is also required for complete disabling.
 
-### Если сработал собственный предохранитель
+### If the module's guard triggers
 
-После успешной загрузки с выключенным модулем прочитать `alwaysstrong/logs/boot-safety.log` и `attest-safety.log`. Автоматически повторно включать модуль после защиты нельзя. Если причина устранена и нужен осознанный повторный запуск, оставить модуль выключенным, в root-терминале удалить только счётчик/маркеры:
+After booting successfully with the module disabled, read `alwaysstrong/logs/boot-safety.log` and `attest-safety.log`. Do not automatically re-enable the module after protection triggers. Once the cause is resolved, an intentional retry can be prepared with the module still disabled by removing only the counters/markers in a root terminal:
 
 ```sh
 rm -f /data/adb/tricky_store/alwaysstrong/boot-safe \
@@ -206,17 +206,17 @@ rm -f /data/adb/tricky_store/alwaysstrong/boot-safe \
       /data/adb/tricky_store/alwaysstrong/attest-paused
 ```
 
-Затем включить модуль в root-менеджере и перезагрузиться. `keybox.xml`, `hbk`, `persistent_keys` и данные приложений для этого удалять не нужно.
+Then enable the module in the root manager and reboot. Do not delete `keybox.xml`, `hbk`, `persistent_keys`, or app data for this procedure.
 
-## Проверки и воспроизведение сборки
+## Checks and reproducible builds
 
-Результаты независимой проверки находятся в `REPAIR_REVIEW.md`. Итоговые хеши и состав сборки приведены в манифесте релиза.
+The independent review is recorded in `REPAIR_REVIEW.md`. Final hashes and build contents are recorded in the release manifest.
 
-Для изменения нативного загрузчика нужны Rust с Android-таргетами и Android NDK. Пересборка и тесты:
+Modifying the native downloader requires Rust with Android targets and the Android NDK. Rebuild and test with:
 
 ```sh
 rustup target add aarch64-linux-android armv7-linux-androideabi
-# ANDROID_NDK_HOME должен указывать на установленный NDK.
+# ANDROID_NDK_HOME must point to the installed NDK.
 bash scripts/build-repair-native.sh
 cargo test --locked --manifest-path native/asfetch/Cargo.toml
 cargo build --locked --manifest-path native/asfetch/Cargo.toml
@@ -224,9 +224,9 @@ python3 -m unittest discover -s tests -v
 bash build.sh --variant fork
 ```
 
-В установленном ZIP не должно быть демонстрационного keybox с приватным ключом. Личная конфигурация и ключи телефона в исходный архив не включаются.
+The installation ZIP must not contain a demonstration keybox with a private key. The phone's personal configuration and keys are not included in the source archive.
 
-## Источники формата результата
+## Result format references
 
-- [Google: формат и значения Play Integrity](https://developer.android.com/google/play/integrity/verdicts).
-- [Play Integrity Checker: обработка ответа и Copy JSON](https://github.com/1nikolas/play-integrity-checker-app/blob/ee6316e906c7fa948fe688e534c6499f74a919a6/app/src/main/java/gr/nikolasspyr/integritycheck/MainActivity.java).
+- [Google: Play Integrity verdict format and values](https://developer.android.com/google/play/integrity/verdicts).
+- [Play Integrity Checker: response handling and Copy JSON](https://github.com/1nikolas/play-integrity-checker-app/blob/ee6316e906c7fa948fe688e534c6499f74a919a6/app/src/main/java/gr/nikolasspyr/integritycheck/MainActivity.java).

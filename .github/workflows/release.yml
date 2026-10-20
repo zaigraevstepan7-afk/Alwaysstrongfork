@@ -42,8 +42,12 @@ jobs:
           echo "tag=$version" >> "$GITHUB_OUTPUT"
           existing=$(gh release view "$version" --json isDraft --jq .isDraft 2>/dev/null || :)
           if [ "$existing" = false ]; then
+            test -s "releases/$version.md"
+            gh release edit "$version" --title "AlwaysStrongFork $version" \
+              --notes-file "releases/$version.md"
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "Release $version already published. Bump module version/versionCode for a new release."
+            echo "Release $version notes synchronized. Existing assets are preserved."
+            gh release view "$version" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
           else
             test -s "releases/$version.md"
             echo "publish=true" >> "$GITHUB_OUTPUT"
