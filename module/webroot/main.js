@@ -41,7 +41,7 @@
   window.addEventListener("pagehide",flushNow);
 
   var DEFAULTS={auto_fp:"1",auto_keybox:"1",status_indicator:"1",rom_spoof_block:"1",
-    spoof_patch_props:"1",custom_keybox:"0",custom_pif:"0",interval_sec:"3600",hide_rom_markers:"0",auto_target:"1"};
+    spoof_patch_props:"1",custom_keybox:"0",custom_pif:"0",interval_sec:"3600",hide_rom_markers:"0",auto_target:"1",denylist_targets:"0"};
   function conf(S,k){ return (S[k]!==undefined&&S[k]!=="")?S[k]:DEFAULTS[k]; }
 
   // ---- toast (mock element) ----
@@ -150,6 +150,7 @@
     // Advanced: ROM + targeting
     setToggle("block rom spoof pixelprops pihooks", conf(S,"rom_spoof_block")==="1");
     setToggle("hide rom identity version", conf(S,"hide_rom_markers")==="1");
+    setToggle("denylist selected target apps", conf(S,"denylist_targets")==="1");
     setToggle("auto targeting target list", conf(S,"auto_target")==="1");
     // spoof flags (Advanced): value from the active pif's prop lines
     paintSpoof(S.spoof||[]);
@@ -235,6 +236,11 @@
   if(rsI) rsI.addEventListener("change",function(e){ settingOn("rom_spoof_block",e.target.checked); });
   var hrI=dkInput("hide rom identity version");
   if(hrI) hrI.addEventListener("change",function(e){ settingOn("hide_rom_markers",e.target.checked); toast(tr("t_applied_next","Applied on next refresh"),2200); });
+  var dlI=dkInput("denylist selected target apps");
+  if(dlI) dlI.addEventListener("change",function(e){
+    settingOn("denylist_targets",e.target.checked);
+    toast("Run Action to sync. Existing DenyList entries are preserved.",3500);
+  });
   var atI=dkInput("auto targeting target list");
   if(atI) atI.addEventListener("change",function(e){ settingOn("auto_target",e.target.checked); });
   // spoof flags: per-key override in spoof.conf, written in the active engine's

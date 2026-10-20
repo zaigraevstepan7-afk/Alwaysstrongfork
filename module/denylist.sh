@@ -51,13 +51,37 @@ com.anu.developers3k.rootchecker com.anu.developers3k.rootchecker
 gr.nikolasspyr.integritycheck gr.nikolasspyr.integritycheck
 io.github.vvb2060.keyattestation io.github.vvb2060.keyattestation"
 
-printf '%s\n' "$ENTRIES" | while IFS=' ' read -r _pkg _proc; do
+# Optional per-app hiding policy. The generated target list already reflects
+# WebUI exclusions and keybox assignments. Never interpret its contents as
+# commands; ignore section headers, UID entries and malformed package names.
+# Sync main processes plus currently running package-prefixed subprocesses.
+# Newly started subprocesses are picked up by the next Action/target rebuild.
+extra_targets() {
+    as_on denylist_targets || return 0
+    [ -f "$AS_CFG_ROOT/target.txt" ] || return 0
+    packages=$(awk '
+        { sub(/#.*/, ""); gsub(/[[:space:]]/, "");
+          sub(/[!?]$/, ""); sub(/@[0-9]+$/, "");
+          if ($0 ~ /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$/) print }
+        ' "$AS_CFG_ROOT/target.txt" | sort -u)
+    processes=$(ps -A -o NAME 2>/dev/null | grep -E '^[A-Za-z0-9_.:]+$')
+    for pkg in $packages; do
+        printf '%s %s\n' "$pkg" "$pkg"
+        for proc in $processes; do
+            case "$proc" in "$pkg":*) printf '%s %s\n' "$pkg" "$proc" ;; esac
+        done
+    done
+}
+
+{ printf '%s\n' "$ENTRIES"; extra_targets; } | sort -u | while IFS=' ' read -r _pkg _proc; do
     [ -n "$_pkg" ] || continue
-    # ls prints "<package>|<process>" lines; skip if this exact pair is present.
     printf '%s\n' "$have" | grep -qxF "$_pkg|$_proc" && continue
-    magisk --denylist add "$_pkg" "$_proc" >/dev/null 2>&1
+    magisk --denylist add "$_pkg" "$_proc" >/dev/null 2>&1 || \
+        echo "DenyList entry not added: $_pkg $_proc"
 done
 
+# List management alone does not hide anything. A compatible external hider
+# must consume the list with enforcement off; never claim universal concealment.
 command -v log >/dev/null 2>&1 && \
     log -t "AlwaysStrong" "DenyList entries synced (enforcement left as-is)"
 exit 0

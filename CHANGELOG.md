@@ -1,5 +1,16 @@
 # AlwaysStrong changelog
 
+## AlwaysStrongFork v1.0.5-repair.1.4.0
+
+- Apply and verify one bounded session-only boot property policy before TEE startup and owned daemon restarts; remove the asynchronous startup race.
+- Cover existing OEM verified-boot, lock, verity, warranty, debug, and build type/tag aliases without inventing properties or changing the product identity.
+- Add opt-in WebUI synchronization of selected app targets and currently running package-prefixed processes to Magisk DenyList. Preserve existing entries and enforcement. A compatible external hider is required.
+- Include property-policy and DenyList logs in diagnostic bundles.
+- Add 10 isolated regression tests, for 50 Python and 6 Rust tests in total.
+- Keep TEESimulator-RS v6.0.1-307 native libraries/DEX unchanged. No universal root-hiding, Play Integrity, or device-runtime guarantee.
+
+The sections below are upstream historical notes; use the README for current fork behavior.
+
 ## v1.0.5
 
 **New**

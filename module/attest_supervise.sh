@@ -40,6 +40,9 @@ rapid=0; ks_changes=0; ks_window=$(date +%s); ks_pid=''
 while sh "$MODPATH/boot_safety.sh" allow; do
     # A malformed or missing keybox is never passed to keystore injection.
     sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1 || exit 0
+    # Re-check on every owned daemon restart, not just service startup: an OEM
+    # service may have restored an unlocked/debug property after the first run.
+    as_bounded 8 sh "$MODPATH/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1 || exit 0
     started=$(date +%s)
     if [ -z "$ks_pid" ]; then ks_pid=$(pidof keystore2 2>/dev/null | head -1 || :); fi
     if [ "$engine" = teesim ]; then

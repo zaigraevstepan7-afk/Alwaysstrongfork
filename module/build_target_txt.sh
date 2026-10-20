@@ -191,3 +191,9 @@ if [ -f "$_md/attest.sh" ]; then
     ( MODPATH="$_md"; . "$_md/attest.sh" 2>/dev/null
       command -v attest_notify >/dev/null 2>&1 && attest_notify ) >/dev/null 2>&1
 fi
+
+# Keep the opt-in hiding list aligned with newly installed/selected apps.
+# No removal: existing user-managed DenyList entries always remain intact.
+if [ "$AS_CFG_ROOT" = /data/adb/tricky_store ] && as_on denylist_targets; then
+    as_bounded 15 sh "$_md/denylist.sh" > "$AS_LOGS/denylist.log" 2>&1 || :
+fi

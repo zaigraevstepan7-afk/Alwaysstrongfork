@@ -10,7 +10,7 @@ def verify(path):
         'META-INF/com/google/android/update-binary',
         'META-INF/com/google/android/updater-script',
         'webroot/index.html', 'webroot/main.js', 'webroot/app.css',
-        'attest.sh', 'engine.sh',
+        'attest.sh', 'engine.sh', 'boot_props.sh', 'denylist.sh',
         'tee_classes.dex',
         'lib/arm64-v8a/libTEESimulator.so', 'lib/arm64-v8a/libinject.so',
         'lib/armeabi-v7a/libTEESimulator.so', 'lib/armeabi-v7a/libinject.so',

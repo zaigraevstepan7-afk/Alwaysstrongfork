@@ -314,6 +314,15 @@ sleep 1
 # script can edit the prop between taps.
 engine_enforce_spoof
 
+# Reapply the same session-only policy on a manual refresh. No partition writes.
+if [ -f "$MODPATH/boot_props.sh" ]; then
+    bounded 8 sh "$MODPATH/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1 || \
+        row "!" "boot property policy incomplete; see logs"
+fi
+if [ -f "$MODPATH/denylist.sh" ]; then
+    bounded 15 sh "$MODPATH/denylist.sh" > "$AS_LOGS/denylist.log" 2>&1 || :
+fi
+
 PATCH=""
 [ -f "$MODPATH/sync_patch.sh" ] && PATCH=$(sh "$MODPATH/sync_patch.sh" boot 2>/dev/null)
 

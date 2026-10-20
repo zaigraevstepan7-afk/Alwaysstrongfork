@@ -326,6 +326,8 @@ sec "Module logs on disk"
 # logcat section below normally has NO AlwaysStrong lines by design — the
 # on-disk copies are where the boot / hourly / watchdog messages live.
 for t in AlwaysStrong AlwaysStrong-boot AlwaysStrong-hourly; do echo "persist.log.tag.$t=$(getprop "persist.log.tag.$t")"; done
+echo "--- boot-props.log (session property policy)"; tail_or boot-props.log "$AS_LOGS/boot-props.log" 60
+echo "--- denylist.log (optional target sync)"; tail_or denylist.log "$AS_LOGS/denylist.log" 30
 echo "--- autopif.log (fingerprint fetch)"; tail_or autopif.log "$AS_LOGS/autopif.log" 40
 echo "--- action-boot.log (first-boot Action)"; tail_or action-boot.log "$AS_LOGS/action-boot.log" 60
 echo "--- action-reset.log (Reset to defaults)"; tail_or action-reset.log "$AS_LOGS/action-reset.log" 40

@@ -66,6 +66,11 @@ start_attestation() {
     sh "$MODDIR/boot_safety.sh" allow || return 1
     [ "$(cat "$AS_DIR/attest-paused" 2>/dev/null)" != "$AS_BOOT_CURRENT" ] || return 1
     as_bounded 8 sh "$MODDIR/keybox_manage.sh" check >/dev/null 2>&1 || return 1
+    # No TEE startup race with the asynchronous post-boot property block.
+    if ! as_bounded 8 sh "$MODDIR/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1; then
+        log -t "AlwaysStrong" "boot property policy failed/timed out; new attestation startup skipped"
+        return 1
+    fi
     attest_start
 }
 
@@ -74,23 +79,9 @@ start_attestation() {
 # daemon crash-loops with EBADF. Engines that don't (TEESimulator) return false
 # here and are started after the boot-completed wait below.
 #
-# TrickyStoreOSS reads the verified-boot state when building the attestation
-# rootOfTrust. The lock-state props are otherwise only asserted in the late
-# block below (after boot_completed), so an early start could read the raw
-# ORANGE/unlocked values. Pin the rootOfTrust-relevant props here first so the
-# daemon reads green/locked; the late block re-asserts them for OEMs that reset
-# them during boot.
-if attest_early 2>/dev/null; then
-    resetprop_if_diff ro.boot.verifiedbootstate green
-    resetprop_if_diff vendor.boot.verifiedbootstate green
-    resetprop_if_diff ro.boot.vbmeta.device_state locked
-    resetprop_if_diff vendor.boot.vbmeta.device_state locked
-    resetprop_if_diff ro.boot.flash.locked 1
-    resetprop_if_diff ro.secureboot.lockstate locked
-    resetprop_if_diff ro.boot.veritymode enforcing
-    resetprop_if_diff vendor.boot.veritymode enforcing
-    start_attestation || :
-fi
+# Every adapter goes through start_attestation, which applies and verifies the
+# same boot property policy synchronously before starting the engine.
+if attest_early 2>/dev/null; then start_attestation || :; fi
 
 # Recovery/charger modes are rejected by boot_safety before any changes.
 # Do not falsify encryption state or chmod SELinux control/policy interfaces.
@@ -99,24 +90,8 @@ fi
 {
 as_bounded 185 sh "$MODDIR/boot_safety.sh" wait 180 || exit 0
 
-# Verified-boot / bootloader-lock fingerprint
-resetprop_if_diff ro.secureboot.lockstate locked
-resetprop_if_diff ro.boot.flash.locked 1
-resetprop_if_diff ro.boot.realme.lockstate 1
-resetprop_if_diff ro.boot.vbmeta.device_state locked
-resetprop_if_diff vendor.boot.verifiedbootstate green
-resetprop_if_diff ro.boot.verifiedbootstate green
-resetprop_if_diff ro.boot.veritymode enforcing
-resetprop_if_diff vendor.boot.veritymode enforcing
-resetprop_if_diff vendor.boot.vbmeta.device_state locked
-resetprop_if_diff sys.oem_unlock_allowed 0
-resetprop_if_diff ro.boot.warranty_bit 0
-resetprop_if_diff ro.warranty_bit 0
-resetprop_if_diff ro.secure 1
-resetprop_if_diff ro.debuggable 0
-resetprop_if_diff ro.adb.secure 1
-resetprop_if_diff service.adb.root 0
-resetprop_if_diff ro.boot.vbmeta.invalidate_on_error yes
+# Lock/debug properties are applied synchronously by start_attestation.
+# Keep the unrelated ROM/DenyList work outside that startup gate.
 
 # --- LineageOS prop scrub (hide derivative-ROM markers from PI checks) ---
 # Low-risk cosmetic strips (vendor name prefix, Aperture camera package list)
@@ -176,6 +151,10 @@ fi
 if ! as_bounded 185 sh "$MODDIR/boot_safety.sh" wait 180; then
     log -t "AlwaysStrong" "boot completion not observed; remaining jobs skipped"
     exit 0
+fi
+
+if attest_early 2>/dev/null; then
+    as_bounded 8 sh "$MODDIR/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1 || :
 fi
 
 # Each adapter uses one kernel-locked supervisor. Do not kill/restart a live

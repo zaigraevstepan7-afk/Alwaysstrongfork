@@ -87,7 +87,7 @@ for f in module.prop service.sh post-fs-data.sh action.sh \
          uninstall.sh common_func.sh as_store.sh sepolicy.rule \
          keybox_fetch.sh keybox_validate.sh keybox_validate.awk keybox_manage.sh repair_init.sh repair_runtime.sh verdict_report.sh auto_repair.sh boot_safety.sh boot_prepare.sh attest_supervise.sh build_target_txt.sh status_fetch.sh description.txt \
          rom_spoof_block.sh conflict_scan.sh sync_patch.sh patch_resolve.sh beta_pif.sh \
-         denylist.sh \
+         denylist.sh boot_props.sh \
          pif_native_fetch.sh prop_unify.sh logcat_cleanup.sh collect_logs.sh \
          import_pif.sh reapply_spoof.sh reset_defaults.sh \
          pif_fallback_1.prop pif_fallback_2.prop \

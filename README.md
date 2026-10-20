@@ -30,6 +30,8 @@ The module is intended for Play Integrity on rooted devices. **BASIC / DEVICE / 
 - **Recovery.** Restore a complete local backup when a keybox is damaged; a separate repair mode can run after importing a checker result.
 - **Per-app settings.** Automatic target list updates, attestation modes, and keybox assignments for individual packages.
 - **WebUI.** Light, dark, and system themes, interface translations, and settings for updates, spoofing, and security patches.
+- **Consistent startup properties.** A bounded, verified boot/debug property policy runs before TEE startup and each owned daemon restart, covering existing OEM aliases without changing the device model.
+- **Optional app hiding list.** Sync selected attestation targets to Magisk DenyList for use with a compatible external hider; enforcement stays under your control.
 - **Background process controls.** Locks against concurrent writes, bounded startup operations, and protection against endless engine restarts.
 - **Diagnostics.** Log collection and separate status indicators for keybox file health and imported Play Integrity verdicts.
 
@@ -118,6 +120,26 @@ Use WebUI for normal settings. Background fingerprint and keybox updates default
 
 On Magisk, the module can add Google Play and checker entries to DenyList when enforcement is disabled. It does not change **Enforce DenyList** itself; these additions are skipped when enforcement is enabled.
 
+### Optional target hiding (Magisk)
+
+In **WebUI → Advanced → Targeting**, enable **Sync targets to DenyList**, then run **Action**. This adds the main processes of apps in the current attestation target list, plus their currently running package-prefixed subprocesses. Target-list rebuilds repeat the sync. If automatic targeting is enabled, that list can include every user-installed app; turn automatic targeting off and curate targets when you need a narrower policy.
+
+This option defaults to off and requires Magisk plus a compatible external hider that consumes DenyList with enforcement off. It does not hide root by itself. With **Enforce DenyList** on, synchronization is skipped to preserve Zygisk injection. KernelSU/APatch hiding lists are not changed.
+
+Existing DenyList entries are preserved. Turning the option off stops future additions; it does not remove entries already added. Manage removals in Magisk. Apps using unrelated custom process names or isolated processes may need manual configuration.
+
+### Startup property checks
+
+Before starting an attestation engine, `boot_props.sh` applies a single session-only policy to existing lock, verified-boot, verity, warranty, debug, and build type/tag properties, including OEM aliases. Writes are read back. A failed or timed-out policy skips that new engine launch and records `alwaysstrong/logs/boot-props.log`. The supervisor repeats this check before each owned daemon restart; Action also reapplies the policy.
+
+For a read-only policy check in a root shell:
+
+```sh
+sh /data/adb/modules/tricky_store/boot_props.sh check
+```
+
+These are property views, not hardware bootloader or AVB validation. The policy does not change the model, encryption state, partitions, or persistent property storage. Disable the module and reboot to restore ROM defaults. The bundled TEESimulator-RS libraries and DEX remain upstream v6.0.1-307; this release changes integration and startup policy, not the native TEE implementation.
+
 ### Data locations
 
 | Path | Contents |
@@ -138,6 +160,7 @@ On Magisk, the module can add Google Play and checker entries to DenyList when e
 | Action did not refresh data | Read its output and logs. Check the network and custom keybox / fingerprint modes. |
 | WebUI does not open | Check your WebUI host and its root access. After updating, fully close the old window and reopen it. |
 | The module disabled itself after several boots | Check `alwaysstrong/boot-state`, `boot-safe`, and the logs. The guard disables this module after three boot attempts without a stable checkpoint. |
+| The engine did not start and `boot-props.log` reports a mismatch | A property write failed or timed out; inspect the named property and root-manager compatibility. A skipped launch does not prove a successful attestation. |
 | The engine stopped restarting until reboot | The supervisor pauses after three rapid exits or repeated `keystore2` restarts. Investigate the logs. |
 
 Use **Collect logs** in WebUI or run this command in a root shell:
@@ -157,7 +180,7 @@ Uninstall through your root manager, then reboot. The uninstall script removes s
 [Build AlwaysStrongFork](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml) runs on pushes to `main`, pull requests, and manual dispatch:
 
 1. Checks shell and JavaScript syntax.
-2. Builds host `asfetch` and runs **40 Python + 6 Rust tests**.
+2. Builds host `asfetch` and runs **50 Python + 6 Rust tests**.
 3. Rebuilds Android `asfetch` for ARM64 / ARMv7 with NDK r27c. Watcher uses the committed prebuilts.
 4. Builds the default, Inject, and Lite ZIPs, verifies their structure, and generates `SHA256SUMS.txt`.
 

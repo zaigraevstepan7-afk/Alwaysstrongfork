@@ -59,7 +59,7 @@ as_init() {
 
 # Every setting there is, in the order the config file lists them.
 AS_KEYS="auto_repair auto_fp auto_keybox status_indicator rom_spoof_block spoof_patch_props
-         force_patch_props logcat_cleanup prop_unify denylist_gms auto_target hide_rom_markers
+         force_patch_props logcat_cleanup prop_unify denylist_gms denylist_targets auto_target hide_rom_markers
          custom_keybox custom_pif patch_system patch_vendor patch_boot interval_sec"
 
 # What a setting means when nothing has been written. Everything the module does
@@ -67,7 +67,7 @@ AS_KEYS="auto_repair auto_fp auto_keybox status_indicator rom_spoof_block spoof_
 as_default() {
     case "$1" in
         auto_repair|auto_fp|auto_keybox|status_indicator|rom_spoof_block|spoof_patch_props|prop_unify|denylist_gms|auto_target) echo 1 ;;
-        custom_keybox|custom_pif|force_patch_props|hide_rom_markers|logcat_cleanup) echo 0 ;;
+        custom_keybox|custom_pif|force_patch_props|hide_rom_markers|logcat_cleanup|denylist_targets) echo 0 ;;
         interval_sec) echo 3600 ;;
         *) echo "" ;;
     esac
