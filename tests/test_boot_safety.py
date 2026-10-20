@@ -1,0 +1,134 @@
+"""Boot-path fixtures never access Android properties, devices or keystore."""
+import fcntl, os, pathlib, subprocess, time, unittest
+import test_repair as repair_fixture
+HOST = repair_fixture.HOST
+
+class BootSafetyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls): repair_fixture.RepairTests.setUpClass.__func__(cls)
+    @classmethod
+    def tearDownClass(cls): repair_fixture.RepairTests.tearDownClass.__func__(cls)
+    sh = repair_fixture.RepairTests.sh
+    setting = repair_fixture.RepairTests.setting
+    def setUp(self):
+        repair_fixture.RepairTests.setUp(self)
+        self.boot=self.d/'boot-id';self.boot.write_text('boot-a')
+        self.completed=self.d/'completed';self.completed.write_text('1')
+        self.mode=self.d/'mode';self.mode.write_text('normal')
+        self.tools=self.d/'tools';self.tools.mkdir()
+        getprop=self.tools/'getprop'
+        getprop.write_text('#!/bin/sh\ncase "$1" in sys.boot_completed) cat "$AS_BOOT_COMPLETED_FILE" ;; ro.bootmode|ro.boot.mode|ro.boot.bootmode|vendor.bootmode) cat "$AS_BOOT_MODE_FILE" ;; esac\n')
+        getprop.chmod(0o755)
+        for name in ['log','resetprop']:
+            f=self.tools/name;f.write_text('#!/bin/sh\nexit 0\n');f.chmod(0o755)
+        pidof=self.tools/'pidof';pidof.write_text('#!/bin/sh\n[ "$1" = keystore2 ] && echo 100\n');pidof.chmod(0o755)
+        self.env.update(AS_BOOT_ID_FILE=str(self.boot),AS_BOOT_COMPLETED_FILE=str(self.completed),AS_BOOT_MODE_FILE=str(self.mode),PATH=str(self.tools)+':'+self.env['PATH'])
+    def tearDown(self): repair_fixture.RepairTests.tearDown(self)
+    def fast_sleep(self):
+        f=self.tools/'sleep';f.write_text('#!/bin/sh\n/bin/sleep 0.03\n');f.chmod(0o755)
+    def daemon(self, body):
+        p=self.mod/'daemon';p.write_text('#!/bin/sh\n'+body);p.chmod(0o755)
+    def safe_early_fixtures(self):
+        (self.mod/'common_func.sh').write_text('SKIPDELPROP=false\nresetprop_if_diff() { :; }\nresetprop_if_match() { :; }\ndelprop_if_exist() { :; }\n')
+        for name in ['sync_patch.sh','rom_spoof_block.sh']:(self.mod/name).write_text('#!/bin/sh\nexit 0\n')
+    def test_post_fs_does_not_take_config_locks_or_run_repair(self):
+        self.safe_early_fixtures();self.setting('custom_keybox','1')
+        touched=self.d/'early-repair';self.env['EARLY_REPAIR_MARKER']=str(touched)
+        for name in ['repair_init.sh','keybox_manage.sh']:
+            (self.mod/name).write_text('#!/bin/sh\ntouch "$EARLY_REPAIR_MARKER"\nsleep 30\n')
+        lock=self.cfg/'alwaysstrong/config.flock'
+        with lock.open('w') as held:
+            fcntl.flock(held,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            start=time.monotonic();self.sh('post-fs-data.sh',ok=0,timeout=8)
+        self.assertLess(time.monotonic()-start,3)
+        self.assertFalse(touched.exists())
+    def test_post_fs_hung_worker_is_stopped_within_stage_budget(self):
+        self.safe_early_fixtures()
+        (self.mod/'sync_patch.sh').write_text('#!/bin/sh\nsleep 30\n')
+        start=time.monotonic();self.sh('post-fs-data.sh',ok=0,timeout=9)
+        self.assertLess(time.monotonic()-start,8)
+    def test_three_unfinished_boots_disable_only_this_module(self):
+        other=self.d/'other-module';other.mkdir();(other/'keep').write_text('untouched')
+        self.sh('boot_safety.sh','begin',ok=0);self.sh('boot_safety.sh','begin',ok=0)
+        self.assertIn('attempts=1',(self.cfg/'alwaysstrong/boot-state').read_text())
+        self.boot.write_text('boot-b');self.sh('boot_safety.sh','begin',ok=0)
+        self.boot.write_text('boot-c');self.sh('boot_safety.sh','begin',ok=1)
+        self.assertTrue((self.mod/'disable').exists());self.assertTrue((self.cfg/'alwaysstrong/boot-safe').exists())
+        self.assertEqual((other/'keep').read_text(),'untouched');self.assertFalse((other/'disable').exists())
+    def test_success_checkpoint_resets_attempts_and_wait_is_bounded(self):
+        self.sh('boot_safety.sh','begin',ok=0);self.sh('boot_safety.sh','complete',ok=0)
+        self.assertIn('attempts=0',(self.cfg/'alwaysstrong/boot-state').read_text())
+        self.boot.write_text('boot-b');self.sh('boot_safety.sh','begin',ok=0)
+        self.completed.write_text('0');self.fast_sleep()
+        self.sh('boot_safety.sh','wait','2',ok=1,timeout=3)
+        self.sh('boot_safety.sh','complete',ok=1)
+    def test_malformed_refresh_interval_cannot_busy_spin_sleep(self):
+        for value,expected in [('9'*64,'86400'),('0','60'),('000060','60'),('-1','3600')]:
+            self.setting('interval_sec',value)
+            result=self.sh('as_store.sh','int','interval_sec','60',ok=0)
+            self.assertEqual(result.stdout.strip(),expected)
+    def test_recovery_mode_skips_service_before_any_startup(self):
+        self.mode.write_text('recovery')
+        marker=self.d/'prepare-called';self.env['PREPARE_MARKER']=str(marker)
+        (self.mod/'boot_prepare.sh').write_text('#!/bin/sh\ntouch "$PREPARE_MARKER"\n')
+        self.sh('service.sh',ok=0,timeout=3)
+        self.assertFalse(marker.exists());self.assertFalse((self.cfg/'alwaysstrong/boot-state').exists())
+    def test_duplicate_service_returns_before_starting_any_jobs(self):
+        marker=self.d/'duplicate-started';self.env['DUPLICATE_MARKER']=str(marker)
+        (self.mod/'boot_safety.sh').write_text('#!/bin/sh\ntouch "$DUPLICATE_MARKER"\nexit 1\n')
+        with (self.mod/'.service.flock').open('w') as held:
+            fcntl.flock(held,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            self.sh('service.sh',ok=0,timeout=3)
+        self.assertFalse(marker.exists())
+    def test_prepare_is_local_and_once_per_boot(self):
+        self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
+        self.sh('boot_prepare.sh',ok=0,timeout=10)
+        active=self.cfg/'alwaysstrong/tmp/inflight';active.write_text('keep')
+        self.sh('boot_prepare.sh',ok=0,timeout=3)
+        self.assertEqual(active.read_text(),'keep')
+        self.assertEqual((self.cfg/'keybox.xml').read_bytes(),self.xml)
+        self.assertIn('custom_keybox=1',(self.cfg/'alwaysstrong/config').read_text())
+    def test_deadline_kills_descendants_and_releases_locks(self):
+        marker=self.d/'survived';lock=self.d/'deadline.flock'
+        cmd=['sh','-c','(sleep 2; touch "$1") & wait','fixture',str(marker)]
+        r=subprocess.run([str(HOST),'run-bounded','1',str(HOST),'lock-run',str(lock),'0',*cmd],capture_output=True,timeout=4)
+        self.assertEqual(r.returncode,124)
+        time.sleep(1.1);self.assertFalse(marker.exists())
+        unlocked=subprocess.run([str(HOST),'lock-run',str(lock),'0','true'])
+        self.assertEqual(unlocked.returncode,0)
+    def test_missing_or_corrupt_keybox_never_starts_daemon(self):
+        marker=self.d/'daemon-started';self.env['DAEMON_MARKER']=str(marker)
+        self.daemon('touch "$DAEMON_MARKER"\nexit 1\n')
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
+        (self.cfg/'keybox.xml').write_bytes(self.xml[:954])
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
+        self.assertFalse(marker.exists())
+    def test_three_rapid_daemon_exits_pause_rest_of_boot(self):
+        self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
+        attempts=self.d/'attempts';self.env['DAEMON_ATTEMPTS']=str(attempts)
+        self.daemon('echo attempt >> "$DAEMON_ATTEMPTS"\nexit 1\n')
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=8)
+        self.assertEqual(len(attempts.read_text().splitlines()),3)
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
+        self.assertEqual(len(attempts.read_text().splitlines()),3)
+        self.assertIn('rapid',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
+    def test_duplicate_supervisor_cannot_start_second_daemon(self):
+        self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
+        ready=self.d/'daemon-ready';self.env['DAEMON_READY']=str(ready)
+        self.daemon('touch "$DAEMON_READY"\nexec /bin/sleep 30\n')
+        worker=subprocess.Popen(['sh',str(self.mod/'attest_supervise.sh'),'tee'],env=self.env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        try:
+            end=time.monotonic()+4
+            while not ready.exists() and time.monotonic()<end:time.sleep(0.02)
+            self.assertTrue(ready.exists());self.sh('attest_supervise.sh','tee',ok=75,timeout=3)
+        finally:
+            (self.mod/'disable').touch();worker.communicate(timeout=5)
+    def test_observed_keystore_restart_churn_pauses_owned_daemon(self):
+        self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
+        counter=self.d/'keystore-count';self.env['KEYSTORE_COUNTER']=str(counter)
+        f=self.tools/'pidof';f.write_text('#!/bin/sh\n[ "$1" = keystore2 ] || exit 1\nn=$(cat "$KEYSTORE_COUNTER" 2>/dev/null || echo 100)\nn=$((n+1)); echo "$n" > "$KEYSTORE_COUNTER"; echo "$n"\n');f.chmod(0o755)
+        self.daemon('exec /bin/sleep 30\n')
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=5)
+        self.assertIn('keystore2',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
+
+if __name__=='__main__':unittest.main(verbosity=2)

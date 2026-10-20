@@ -1,0 +1,112 @@
+name: Release
+
+# Tag a version (e.g. `git tag v1.0.5 && git push origin v1.0.5`) and this builds
+# the installable zips on GitHub's runners and attaches them to the release.
+# They are produced from source here - never uploaded by hand.
+#
+# One tag ships the three release lines, all on the default TEESimulator-RS
+# keystore and all built from this tree:
+#   AlwaysStrong-<ver>.zip           PlayIntegrityFork  + TEESimulator-RS
+#   AlwaysStrong-<ver>-inject.zip    PlayIntegrityFix   + TEESimulator-RS
+#   AlwaysStrong-<ver>-nopif.zip     PIF-less / Lite    + TEESimulator-RS
+#
+# The alternative keystore engines - TrickyStoreOSS (-TSOSS) and TEESimulator /
+# JingMatrix (-TEESIM) - are never released. They stay buildable
+# (`build.sh --engine trickystoreoss|teesim`) and the nightly workflow produces
+# them as artifacts; that is where they live.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Also runnable from the Actions tab (or the API) against a tag ref, for when
+  # a tag-push event doesn't fire the run on its own. Dispatched on a tag,
+  # github.ref_name is that tag, so every step below behaves the same as a push.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zip unzip
+
+      - name: Use committed native binaries (skip the cargo-ndk step in CI)
+        # native/*/prebuilt/<abi>/* are committed; touching them newer than the
+        # sources makes build.sh package them as-is instead of needing Rust+NDK.
+        run: find native -path '*/prebuilt/*' -type f -exec touch {} +
+
+      - name: Build the release zips (fork, inject, nopif on TEESimulator-RS)
+        run: bash build.sh
+
+      - name: Release notes from CHANGELOG
+        run: |
+          # Lead with the current WebUI screenshots (served from this tag so the
+          # links never drift), then the tag's CHANGELOG section.
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/screenshots"
+          {
+            echo "<div align=\"center\">"
+            echo "<img src=\"${raw}/webui.jpg\" width=\"30%\" alt=\"WebUI\"> &nbsp; <img src=\"${raw}/advanced.jpg\" width=\"30%\" alt=\"Advanced\"> &nbsp; <img src=\"${raw}/languages.jpg\" width=\"30%\" alt=\"Translated into 15 languages\">"
+            echo "</div>"
+            echo
+          } > RELEASE_NOTES.md
+          awk -v v="## ${GITHUB_REF_NAME}" '
+            $0==v {f=1; next}
+            /^## / {f=0}
+            f {print}
+          ' CHANGELOG.md >> RELEASE_NOTES.md
+          echo "----- notes -----"; cat RELEASE_NOTES.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            out/AlwaysStrong-*.zip
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+
+      - name: Point the update manifests at this release
+        # Installed modules poll their updateJson, so it has to name a release
+        # that already exists — hence this runs after publish. Never fails the
+        # release: a bad push here costs an edit, not the build.
+        #
+        # The three release lines each carry an updateJson (fork -> update.json,
+        # inject -> update-inject.json, nopif -> update-nopif.json).
+        continue-on-error: true
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          git fetch --no-tags origin +refs/heads/main:refs/heads/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" main; then
+            echo "::notice::tag $tag is not on main — leaving the manifests alone"
+            exit 0
+          fi
+          git checkout main
+          # all lines carry the same version — module/module.prop defines it once
+          ver=$(sed -n 's/^version=//p' module/module.prop)
+          code=$(sed -n 's/^versionCode=//p' module/module.prop)
+          write_manifest() {
+            # $1 manifest file, $2 zip file name
+            printf '{\n  "version": "%s",\n  "versionCode": %s,\n  "zipUrl": "https://github.com/%s/releases/download/%s/%s",\n  "changelog": "https://raw.githubusercontent.com/%s/main/CHANGELOG.md"\n}\n' \
+              "$ver" "$code" "$GITHUB_REPOSITORY" "$tag" "$2" "$GITHUB_REPOSITORY" > "$1"
+          }
+          write_manifest update.json        "AlwaysStrong-${ver}.zip"
+          write_manifest update-inject.json "AlwaysStrong-${ver}-inject.zip"
+          write_manifest update-nopif.json  "AlwaysStrong-${ver}-nopif.zip"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add update.json update-inject.json update-nopif.json
+          git diff --cached --quiet && { echo "manifests already current"; exit 0; }
+          git commit -m "chore: point update manifests at $tag"
+          git push origin main

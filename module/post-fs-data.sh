@@ -1,0 +1,101 @@
+#!/system/bin/sh
+MODPATH="${0%/*}"
+# Six seconds is below the 10s KSU/APatch blocking-stage budget. The native
+# deadline stops the entire worker process group, including stuck helpers.
+if [ "${1:-}" != __early ]; then
+    . "$MODPATH/repair_runtime.sh"
+    as_bounded 6 sh "$MODPATH/post-fs-data.sh" __early
+    exit 0
+fi
+sh "$MODPATH/boot_safety.sh" begin || exit 0
+. $MODPATH/common_func.sh
+# post-fs-data blocks Android. Keep migration, native file locks, PEM/DER
+# validation and keybox recovery in the non-blocking service prepare stage.
+[ -f "$MODPATH/as_store.sh" ] && . "$MODPATH/as_store.sh"
+
+# Our PIF zygisk binary is binary-patched at build time to read its dex/config
+# from /data/adb/modules/tricky_store (our module dir) instead of the upstream
+# hardcoded /data/adb/modules/playintegrityfix. So there is NO separate
+# playintegrityfix folder to create here — everything lives under our module.
+[ -f "$MODPATH/common_setup.sh" ] && . $MODPATH/common_setup.sh
+
+# --- DenyList: intentionally NOT managed ---------------------------------
+# We must never force "Enforce DenyList" on. With Zygisk Next / ReZygisk /
+# NeoZygisk (the recommended setup) plus a hider like Shamiko, enforcement is
+# meant to stay OFF — the Zygisk implementation does the hiding, and turning
+# Magisk's enforcement on can actually break it. A previous version called
+# `magisk --denylist enable` here, which flipped a toggle users deliberately
+# keep off. Leave the user's DenyList state exactly as they set it.
+
+# --- Security patch level (attestation + Build consistency) ---------------
+# Writes /data/adb/tricky_store/security_patch.txt for the TEE attestation and
+# pins ro.build.version.security_patch to match the spoofed fingerprint.
+[ -f "$MODPATH/sync_patch.sh" ] && sh "$MODPATH/sync_patch.sh" boot 2>/dev/null
+
+# --- Session-only property spoofing used by the attestation setup ---
+
+# Samsung
+resetprop_if_diff ro.boot.warranty_bit 0
+resetprop_if_diff ro.vendor.boot.warranty_bit 0
+resetprop_if_diff ro.vendor.warranty_bit 0
+resetprop_if_diff ro.warranty_bit 0
+resetprop_if_diff ro.boot.fmp_config 1
+resetprop_if_diff ro.boot.dp_fw_check 1
+
+# Realme
+resetprop_if_diff ro.boot.realmebootstate green
+
+# OnePlus
+resetprop_if_diff ro.is_ever_orange 0
+
+# VBMeta integrity chain (helps some devices reach DEVICE verdict)
+resetprop_if_diff ro.boot.vbmeta.hash_alg sha256
+resetprop_if_diff ro.boot.vbmeta.avb_version 1.0
+resetprop_if_diff ro.boot.vbmeta.invalidate_on_error yes
+for p in /dev/block/by-name/vbmeta /dev/block/by-name/vbmeta_a /dev/block/bootdevice/by-name/vbmeta; do
+    [ -e "$p" ] && VBMETA_BLK="$p" && break
+done
+if [ -n "$VBMETA_BLK" ]; then
+    VBMETA_SIZE=$(blockdev --getsize64 "$VBMETA_BLK" 2>/dev/null)
+    [ -n "$VBMETA_SIZE" ] && resetprop_if_diff ro.boot.vbmeta.size "$VBMETA_SIZE"
+fi
+
+# Build tags / type — all variants (system, vendor, product, system_ext, etc.)
+for PROP in $(resetprop | grep -oE 'ro.*.build.tags'); do
+    resetprop_if_diff $PROP release-keys
+done
+for PROP in $(resetprop | grep -oE 'ro.*.build.type'); do
+    resetprop_if_diff $PROP user
+done
+
+resetprop_if_diff ro.adb.secure 1
+if ! $SKIPDELPROP; then
+    delprop_if_exist ro.boot.verifiedbooterror
+    delprop_if_exist ro.boot.verifyerrorpart
+fi
+resetprop_if_diff ro.boot.veritymode.managed yes
+resetprop_if_diff ro.debuggable 0
+resetprop_if_diff ro.force.debuggable 0
+resetprop_if_diff ro.secure 1
+
+# Strip custom-ROM build leaks (LineageOS, crDroid, etc.). These props are a
+# tell to PI, BUT they are also what Settings → About phone reads to show the
+# ROM version. Play Integrity relies on the fingerprint / bootloader / keybox
+# and the zygisk's per-process Build.* spoof — NOT on these globally-visible
+# props — so deleting them device-wide buys almost no integrity while it breaks
+# the ROM-version display (shows "unknown"). Preserve them by default; only
+# scrub when the user opts in via the WebUI Advanced tab.
+#   Opt-in:  hide_rom_markers=1 in alwaysstrong/config (WebUI Advanced tab)
+if as_on hide_rom_markers; then
+    for PROP in ro.lineage.build.version ro.lineage.version ro.lineage.display.version \
+                ro.modversion ro.cm.version \
+                ro.crdroid.version ro.crdroid.display.version ro.crdroid.build.version; do
+        delprop_if_exist "$PROP" 2>/dev/null || true
+    done
+fi
+
+# Disable ROM-level spoof engines (PixelPropsUtils / pihooks / entryhooks)
+# before GMS starts. Gated by rom_spoof_block in alwaysstrong/config.
+if [ -x "$MODPATH/rom_spoof_block.sh" ]; then
+    sh "$MODPATH/rom_spoof_block.sh" 2>/dev/null || true
+fi

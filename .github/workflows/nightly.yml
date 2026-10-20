@@ -1,0 +1,186 @@
+name: Nightly
+
+# Test builds, uploaded as GitHub Actions ARTIFACTS — never a release.
+# Runs when a push actually changes what goes INTO a zip, so the artifacts are
+# the bleeding-edge snapshot of main between releases. Releases only
+# ship the three TEESimulator-RS zips; this is also where the OPTIONAL keystore
+# engines (TrickyStoreOSS -TSOSS, TEESimulator/JingMatrix -TEESIM) are built for
+# anyone who wants to try them without building locally.
+#
+# Every variant is its own artifact with a STABLE (version-less) name, so the
+# latest build of any line has a permanent direct link via nightly.link:
+#   https://nightly.link/evoker0/AlwaysStrong/workflows/nightly/main            (all nine)
+#   https://nightly.link/evoker0/AlwaysStrong/workflows/nightly/main/AlwaysStrong-TSOSS.zip
+# The artifact IS the flashable module zip (contents are uploaded unpacked).
+# or from the run's "Artifacts" section (Actions tab), or:
+#   gh run download -R evoker0/AlwaysStrong --name AlwaysStrong-TSOSS
+#
+# Its module.prop reads `version=v1.0.4 (411-06f040e-nightly)` - the release
+# version plus the <commits>-<sha>-<buildtype> tag the rest of the TrickyStore
+# family uses - so a nightly is never mistaken for the release it was built on.
+
+# What triggers a build is an allow-list of the things a zip is made of, the way
+# Tricky-Addon gates on module/ + webui/. A README fix, a CHANGELOG entry, a
+# screenshot or the update.json commit the release workflow pushes changes no
+# byte inside any zip, and used to spend a full nine-variant run anyway.
+#
+# There is deliberately NO schedule: nothing else in this family builds on a
+# timer (the one cron in the ecosystem, PIF's autopif.yml, refreshes fingerprint
+# DATA, not builds), and a daily run here would only rebuild the same commit
+# with the same pinned upstream zips. Artifacts are kept for 90 days, so the
+# nightly.link URLs keep working through a quiet stretch on main.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zip unzip
+
+      - name: Use committed native binaries (skip the cargo-ndk step in CI)
+        run: find native -path '*/prebuilt/*' -type f -exec touch {} +
+
+      - name: Version this snapshot apart from the release
+        # A nightly is built from whatever is on main, so it is ahead of the last
+        # tag while carrying the same version= as the release it sits on: a
+        # tester's build was indistinguishable from the released one in the
+        # manager and in bug reports. Tag it the way the rest of the TrickyStore
+        # family tags its builds - TrickyStore ships `v1.4.1 (245-72b2e84-release)`,
+        # TEESimulator `v4.0 (63-123d8ba-release)` - with `nightly` as the build
+        # type: `v1.0.4 (411-06f040e-nightly)`. Upstream also puts the commit
+        # count in versionCode; ours tracks the release and is left alone, so the
+        # next release still shows up as an update for anyone on a nightly.
+        run: |
+          set -eu
+          base=$(sed -n 's/^version=//p' module/module.prop)
+          tag="$(git rev-list --count HEAD)-$(git rev-parse --short=7 HEAD)-nightly"
+          echo "AS_BUILD_TAG=$tag"            >> "$GITHUB_ENV"
+          echo "AS_ZIPVER=${base}-${tag}"     >> "$GITHUB_ENV"
+          echo "::notice::nightly version ${base} (${tag})"
+
+      - name: Build the release lines (TEESimulator-RS)
+        run: bash build.sh --build-tag "$AS_BUILD_TAG"
+
+      - name: Build the optional TrickyStoreOSS lines (-TSOSS)
+        run: bash build.sh --engine trickystoreoss --build-tag "$AS_BUILD_TAG"
+
+      - name: Build the optional TEESimulator (JingMatrix) lines (-TEESIM)
+        run: bash build.sh --engine teesim --build-tag "$AS_BUILD_TAG"
+
+      - name: List what was built
+        run: ls -la out/
+
+      # upload-artifact re-zips whatever it is given, so handing it the built
+      # module zip would yield a zip-of-a-zip that has to be unpacked before
+      # flashing. Unpack each variant and upload its CONTENTS instead, so the
+      # downloaded artifact is itself the flashable module zip. Artifact names
+      # carry no version so the nightly.link URLs stay permanent; the version
+      # is in module.prop inside (release version + the nightly build tag).
+      - name: Unpack each variant into its own artifact folder
+        run: |
+          set -euo pipefail
+          for z in out/AlwaysStrong-*.zip; do
+            base=$(basename "$z" .zip)                  # AlwaysStrong-<ver>-inject-TSOSS
+            # The version in the name is `<ver>-<commits>-<sha>-nightly`, so strip
+            # the whole known version instead of up to the first dash.
+            rest=${base#"AlwaysStrong-${AS_ZIPVER}"}    # -inject-TSOSS
+            [[ "$rest" == "$base" ]] && { echo "unexpected zip name: $base" >&2; exit 1; }
+            variant=${rest#-}                           # inject-TSOSS
+            [[ -z "$variant" ]] && variant=default      # no suffix = the default zip
+            mkdir -p "artifacts/$variant"
+            unzip -q "$z" -d "artifacts/$variant"
+          done
+          ls -la artifacts/*/
+
+      - name: Upload AlwaysStrong (default)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong
+          path: artifacts/default
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-inject
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-inject
+          path: artifacts/inject
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-nopif
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-nopif
+          path: artifacts/nopif
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-TSOSS
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-TSOSS
+          path: artifacts/TSOSS
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-inject-TSOSS
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-inject-TSOSS
+          path: artifacts/inject-TSOSS
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-nopif-TSOSS
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-nopif-TSOSS
+          path: artifacts/nopif-TSOSS
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-TEESIM
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-TEESIM
+          path: artifacts/TEESIM
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-inject-TEESIM
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-inject-TEESIM
+          path: artifacts/inject-TEESIM
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload AlwaysStrong-nopif-TEESIM
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrong-nopif-TEESIM
+          path: artifacts/nopif-TEESIM
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,1 @@
+Local repair build. Validated keybox replacement and recovery. Check device verdict in an independent checker.

@@ -1,0 +1,6 @@
+# module.prop keys this line overrides, applied by build.sh after module/ is
+# staged. version / versionCode are not overridable — they stay defined once, in
+# module/module.prop. The two lines update independently, hence the manifest.
+name=AlwaysStrong [Inject]
+updateJson=https://raw.githubusercontent.com/evoker0/AlwaysStrong/main/update-inject.json
+description=[Inject build] Strong Play Integrity in one drop-in module. Hardware attestation + an auto-refreshed Pixel fingerprint. Tap Action.

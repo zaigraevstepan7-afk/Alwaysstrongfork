@@ -1,0 +1,80 @@
+name: Build AlwaysStrongFork
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell and JavaScript syntax
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find module module-variants attest scripts -type f \( -name '*.sh' -o -name 'build.conf' \) -print0)
+          bash -n build.sh module/daemon module/META-INF/com/google/android/update-binary
+          node --check module/webroot/main.js
+
+      - name: Build native host helper and run regression tests
+        run: |
+          set -euo pipefail
+          cargo build --locked --manifest-path native/asfetch/Cargo.toml
+          cargo test --locked --manifest-path native/asfetch/Cargo.toml
+          python3 -m unittest discover -s tests -v
+
+      - name: Set up Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: false
+
+      - name: Rebuild Android fetcher from the checked-out source
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -euo pipefail
+          rustup target add aarch64-linux-android armv7-linux-androideabi
+          bash scripts/build-repair-native.sh
+
+      - name: Build installable Magisk ZIP
+        run: |
+          set -euo pipefail
+          # The unchanged watcher is supplied for all four Android ABIs.
+          find native -path '*/prebuilt/*' -type f -exec touch {} +
+          bash build.sh --variant fork
+          python3 scripts/verify-module-zip.py out/AlwaysStrong-*.zip
+          (cd out && sha256sum AlwaysStrong-*.zip > SHA256SUMS.txt)
+          {
+            echo '### Installable AlwaysStrongFork ZIP'
+            echo 'Download the module-zip artifact, extract the outer archive, and install the ZIP inside using Magisk.'
+            echo
+            echo '```'
+            cat out/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact module ZIP and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlwaysStrongFork-module-zip
+          path: |
+            out/AlwaysStrong-*.zip
+            out/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90

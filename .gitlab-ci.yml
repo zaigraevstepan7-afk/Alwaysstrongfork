@@ -1,0 +1,35 @@
+stages:
+  - build
+
+nightly:
+  stage: build
+  image: ubuntu:24.04
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - module/**/*
+        - module-variants/**/*
+        - attest/**/*
+        - native/**/*
+        - banner.png
+        - build.sh
+        - .gitlab-ci.yml
+    - if: $CI_PIPELINE_SOURCE == "web"
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends zip unzip curl git ca-certificates
+    - find native -path '*/prebuilt/*' -type f -exec touch {} +
+    - |
+      base=$(sed -n 's/^version=//p' module/module.prop)
+      tag="$(git rev-list --count HEAD)-$(git rev-parse --short=7 HEAD)-nightly"
+      echo "AS_BUILD_TAG=$tag" >> build.env
+      echo "AS_ZIPVER=${base}-${tag}" >> build.env
+  script:
+    - source build.env
+    - bash build.sh --build-tag "$AS_BUILD_TAG"
+    - bash build.sh --engine trickystoreoss --build-tag "$AS_BUILD_TAG"
+    - bash build.sh --engine teesim --build-tag "$AS_BUILD_TAG"
+    - ls -la out/
+  artifacts:
+    paths:
+      - out/AlwaysStrong-*.zip
+    expire_in: 90 days
