@@ -132,6 +132,7 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('keystore2',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
 
     def test_corrupted_boot_counter_cannot_overflow_and_bypass_guard(self):
+        (self.cfg/'alwaysstrong').mkdir()
         (self.cfg/'alwaysstrong/boot-state').write_text('boot_id=older\nattempts='+'9'*80+'\n')
         self.sh('boot_safety.sh','begin',ok=1)
         self.assertTrue((self.mod/'disable').exists())
@@ -175,6 +176,7 @@ class BootSafetyTests(unittest.TestCase):
         self.assertEqual(target.read_text(),'com.previous.app\n')
 
     def test_target_writer_publishes_complete_filtered_list(self):
+        (self.cfg/'alwaysstrong').mkdir()
         target=self.cfg/'target.txt'
         f=self.tools/'pm';f.write_text('#!/bin/sh\nprintf "%s\\n" package:com.google.android.gms package:com.example.app package:org.lsposed.manager\n');f.chmod(0o755)
         (self.cfg/'alwaysstrong/apps.map').write_text('org.lsposed.manager\tother.xml|gen\n')

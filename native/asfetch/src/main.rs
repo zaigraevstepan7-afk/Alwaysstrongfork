@@ -36,6 +36,9 @@ fn run_bounded(args: &[String]) -> i32 {
     use std::os::unix::process::{CommandExt, ExitStatusExt};
     unsafe extern "C" {
         fn setpgid(pid: i32, pgid: i32) -> i32;
+        fn getpid() -> i32;
+        fn getppid() -> i32;
+        fn getpgrp() -> i32;
         fn kill(pid: i32, signal: i32) -> i32;
     }
     if args.len() < 2 { eprintln!("run-bounded: SECONDS COMMAND [ARG...]"); return 2; }
@@ -43,6 +46,14 @@ fn run_bounded(args: &[String]) -> i32 {
         Ok(v) if (1..=600).contains(&v) => v,
         _ => { eprintln!("run-bounded: invalid deadline"); return 2; }
     };
+    // Nested deadline helpers must survive their caller's group termination
+    // long enough to kill their own worker group. Otherwise a nested setpgid
+    // escapes the outer deadline and can retain output pipes and writer locks.
+    let parent = unsafe { getppid() };
+    if unsafe { getpgrp() != getpid() && setpgid(0, 0) != 0 } {
+        eprintln!("run-bounded: helper group: {}", std::io::Error::last_os_error());
+        return 1;
+    }
     let mut command = std::process::Command::new(&args[1]);
     command.args(&args[2..]);
     unsafe {
@@ -57,6 +68,12 @@ fn run_bounded(args: &[String]) -> i32 {
     };
     let started = Instant::now();
     loop {
+        if unsafe { getppid() } != parent {
+            unsafe { kill(-(child.id() as i32), 9); }
+            let _ = child.try_wait();
+            eprintln!("run-bounded: caller exited; worker group stopped");
+            return 143;
+        }
         match child.try_wait() {
             Ok(Some(status)) => return status.code().unwrap_or_else(|| 128 + status.signal().unwrap_or(1)),
             Ok(None) => {},
