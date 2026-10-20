@@ -9,6 +9,7 @@ int main() {
     assert(isolation::eligible(1010480,false,"com.example.app:worker"));
     assert(!isolation::eligible(10480,true,"com.example.app"));
     assert(!isolation::eligible(1000,false,"com.example.app"));
+    assert(!isolation::eligible(20007,false,"com.example.app"));
     assert(!isolation::eligible(99007,false,"com.example.app"));
     assert(!isolation::eligible(10480,false,"com.google.android.gms:unstable"));
     assert(!isolation::eligible(10480,false,"com.tencent.soter.soterserver"));

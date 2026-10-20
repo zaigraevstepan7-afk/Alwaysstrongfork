@@ -15,7 +15,6 @@
 //   aswatcher conflict     -> conflict check; exit code = active conflict count
 
 use std::env;
-use std::fs;
 use std::path::Path;
 use std::process::{Command, exit};
 use std::thread;
@@ -28,16 +27,6 @@ const TARGET_TXT:  &str = "/data/adb/tricky_store/target.txt";
 const PKG_DIR:     &str = "/data/system";
 const PKG_FILE:    &str = "packages.list";
 const LOG_TAG:     &str = "AlwaysStrong";
-
-const XPOSED_PKGS: &[&str] = &[
-    "de.robv.android.xposed.installer",
-    "org.lsposed.manager",
-    "io.github.lsposed.manager",
-    "org.meowcat.edxposed.manager",
-    "com.solohsu.android.edxp.manager",
-    "io.va.exposed",
-    "com.topjohnwu.lsplant.manager",
-];
 
 const CONFLICT_MODS: &[&str] = &[
     "playintegrityfix", "playintegrityfork", "play_integrity_fix",
@@ -61,6 +50,8 @@ fn module_dir() -> String {
 
 fn rebuild() -> i32 {
     let builder = format!("{}/{}", module_dir(), BUILDER);
+    if Path::new(&format!("{}/disable", module_dir())).exists() ||
+       Path::new(&format!("{}/remove", module_dir())).exists() { return 0; }
     if !Path::new(&builder).exists() {
         log_msg(&format!("builder missing: {}", builder));
         return 1;
@@ -76,35 +67,8 @@ fn rebuild() -> i32 {
     }
 }
 
-fn pm_installed(pkg: &str) -> bool {
-    Command::new("pm").args(["path", pkg]).output()
-        .map(|o| o.status.success() && !o.stdout.is_empty())
-        .unwrap_or(false)
-}
-
-fn strip_suffix(s: &str) -> &str {
-    s.strip_suffix('!').or_else(|| s.strip_suffix('?')).unwrap_or(s)
-}
-
-fn xposed_scan() -> i32 {
-    let Ok(content) = fs::read_to_string(TARGET_TXT) else { return 0; };
-    let before = content.lines().count();
-    let mut kept: Vec<&str> = content.lines().collect();
-    for pkg in XPOSED_PKGS {
-        if !pm_installed(pkg) { continue; }
-        let len_before = kept.len();
-        kept.retain(|l| strip_suffix(l.trim()) != *pkg);
-        if kept.len() != len_before {
-            log_msg(&format!("excluded xposed pkg {}", pkg));
-        }
-    }
-    if kept.len() != before {
-        let mut new = kept.join("\n");
-        new.push('\n');
-        let _ = fs::write(TARGET_TXT, new);
-    }
-    0
-}
+// The builder filters excluded packages in the same atomic transaction.
+fn xposed_scan() -> i32 { rebuild() }
 
 fn conflict_check() -> i32 {
     let moddir = module_dir();
@@ -146,7 +110,6 @@ fn run_inotify() -> std::io::Result<()> {
         }
         if fire {
             rebuild();
-            xposed_scan();
         }
     }
 }
@@ -154,7 +117,6 @@ fn run_inotify() -> std::io::Result<()> {
 fn daemon_loop() -> ! {
     wait_for_pm();
     rebuild();
-    xposed_scan();
     conflict_check();
     loop {
         if let Err(e) = run_inotify() {

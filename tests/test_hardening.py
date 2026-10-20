@@ -114,7 +114,7 @@ else: raise RuntimeError('forbidden DenyList operation '+repr(a))
                 del self.env[kind]
 
     def test_recovery_is_untouched(self):
-        for mode in ['recovery','charger','rescue','fastboot']:
+        for mode in ['recovery','charger','rescue','fastboot','fastbootd']:
             self.props.write_text(json.dumps({'ro.bootmode':mode,'ro.debuggable':'1'}))
             self.assertEqual(self.run_script('boot_props.sh').returncode, 0)
             self.assertFalse(self.writes.exists())

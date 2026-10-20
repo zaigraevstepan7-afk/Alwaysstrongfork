@@ -61,11 +61,14 @@ fn run_bounded(args: &[String]) -> i32 {
             Ok(Some(status)) => return status.code().unwrap_or_else(|| 128 + status.signal().unwrap_or(1)),
             Ok(None) => {},
             Err(e) => { eprintln!("run-bounded: wait: {e}"); unsafe { kill(-(child.id() as i32), 9); }
-                let _ = child.wait(); return 1; }
+                let _ = child.try_wait(); return 1; }
         }
         if started.elapsed() >= Duration::from_secs(seconds) {
             unsafe { kill(-(child.id() as i32), 9); }
-            let _ = child.wait();
+            // SIGKILL cannot interrupt uninterruptible kernel I/O. Never
+            // wait() here: post-fs-data must return even if that child stays D.
+            // The exiting helper leaves eventual reaping to the init process.
+            let _ = child.try_wait();
             eprintln!("run-bounded: {seconds}s deadline exceeded");
             return 124;
         }

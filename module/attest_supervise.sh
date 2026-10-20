@@ -36,14 +36,38 @@ pause_engine() {
     printf '%s\n' "$id" > "$AS_DIR/attest-paused"
     printf '%s\n' "$1" > "$AS_LOGS/attest-safety.log"
 }
-rapid=0; ks_changes=0; ks_window=$(date +%s); ks_pid=''
+# Circuit-breaker time must not jump when network time corrects the clock.
+uptime_seconds() {
+    read -r seconds rest < "${AS_UPTIME_FILE:-/proc/uptime}" || return 1
+    seconds=${seconds%%.*}
+    case "$seconds" in ''|*[!0-9]*) return 1 ;; esac
+    [ "${#seconds}" -le 9 ] || return 1
+    printf '%s\n' "$seconds"
+}
+budget="$AS_DIR/attest-attempts"
+rapid=0
+if [ "$(_kv_get "$budget" boot_id)" = "$id" ]; then
+    rapid=$(_kv_get "$budget" attempts)
+    case "$rapid" in 0|1|2|3) ;; *) rapid=3 ;; esac
+fi
+save_budget() {
+    tmp=$(mktemp "$AS_DIR/.attest-attempts.XXXXXX") || return 1
+    printf 'boot_id=%s\nattempts=%s\n' "$id" "$rapid" > "$tmp" && mv -f "$tmp" "$budget"
+}
+ks_changes=0; ks_window=$(uptime_seconds); ks_pid=''
 while sh "$MODPATH/boot_safety.sh" allow; do
     # A malformed or missing keybox is never passed to keystore injection.
-    sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1 || exit 0
+    as_bounded 8 sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1 || exit 0
     # Re-check on every owned daemon restart, not just service startup: an OEM
     # service may have restored an unlocked/debug property after the first run.
     as_bounded 8 sh "$MODPATH/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1 || exit 0
-    started=$(date +%s)
+    if [ "$rapid" -ge 3 ]; then
+        pause_engine 'Attestation paused for this boot after three unconfirmed daemon launches.'
+        exit 0
+    fi
+    rapid=$((rapid + 1))
+    save_budget || exit 0
+    started=$(uptime_seconds)
     if [ -z "$ks_pid" ]; then ks_pid=$(pidof keystore2 2>/dev/null | head -1 || :); fi
     if [ "$engine" = teesim ]; then
         home="$MODPATH/teesim"
@@ -56,11 +80,13 @@ while sh "$MODPATH/boot_safety.sh" allow; do
     child=$!
     child_start=$(_proc_start "$child")
     while child_alive; do
-        now=$(date +%s)
+        now=$(uptime_seconds)
         if [ "$((now - started))" -lt 120 ]; then sleep 5; else sleep 30; fi
         sh "$MODPATH/boot_safety.sh" allow || exit 0
         current=$(pidof keystore2 2>/dev/null | head -1 || :)
-        now=$(date +%s)
+        now=$(uptime_seconds)
+        # A stable owned daemon clears the persisted launch budget. The
+        # keystore churn check still runs before declaring this launch healthy.
         if [ "$((now - ks_window))" -ge 60 ]; then ks_changes=0; ks_window=$now; fi
         if [ -n "$current" ] && [ -n "$ks_pid" ] && [ "$current" != "$ks_pid" ]; then
             ks_changes=$((ks_changes + 1))
@@ -70,11 +96,14 @@ while sh "$MODPATH/boot_safety.sh" allow; do
             fi
         fi
         [ -z "$current" ] || ks_pid=$current
+        if [ "$rapid" -ne 0 ] && [ "$((now - started))" -ge 60 ]; then
+            rapid=0; save_budget || exit 0
+        fi
     done
     wait "$child" 2>/dev/null || :
     child=''
-    now=$(date +%s)
-    if [ "$((now - started))" -ge 60 ]; then rapid=0; else rapid=$((rapid + 1)); fi
+    now=$(uptime_seconds)
+    if [ "$((now - started))" -ge 60 ]; then rapid=0; save_budget || exit 0; fi
     if [ "$rapid" -ge 3 ]; then
         pause_engine 'Attestation paused for this boot after three rapid daemon exits.'
         exit 0

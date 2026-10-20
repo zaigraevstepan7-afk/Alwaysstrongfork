@@ -4,9 +4,9 @@ umask 077
 MODDIR=$(cd "${0%/*}" && pwd)
 case "${1:-get}" in
     get) cat "$MODDIR/targets.list" ;;
-    fonts-get) cat "$MODDIR/private-fonts" ;;
+    fonts-get) printf '0\n' ;;
     fonts-set)
-        case "${2:-}" in 0|1) printf '%s\n' "$2" > "$MODDIR/private-fonts" ;; *) exit 1 ;; esac
+        case "${2:-}" in 0) printf '%s\n' "$2" > "$MODDIR/private-fonts" ;; *) exit 1 ;; esac
         ;;
     set)
         value=${2:-}

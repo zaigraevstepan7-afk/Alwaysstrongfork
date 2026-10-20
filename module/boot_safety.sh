@@ -7,7 +7,7 @@ MODPATH=$(cd "${0%/*}" && pwd)
 as_init
 boot_id() { cat "${AS_BOOT_ID_FILE:-/proc/sys/kernel/random/boot_id}" 2>/dev/null; }
 allow_boot() {
-    [ ! -f "$MODPATH/disable" ] && [ ! -f "$AS_DIR/boot-safe" ] || return 1
+    [ ! -e "$MODPATH/disable" ] && [ ! -e "$MODPATH/remove" ] && [ ! -e "$AS_DIR/boot-safe" ] || return 1
     for prop in ro.bootmode ro.boot.mode ro.boot.bootmode vendor.bootmode; do
         mode=$(getprop "$prop" 2>/dev/null || :)
         case "$mode" in recovery|charger|rescue|fastboot|fastbootd) return 1 ;; esac
@@ -47,7 +47,7 @@ case "$id" in ''|*[!A-Za-z0-9-]*) exit 1 ;; esac
 state="$AS_DIR/boot-state"
 old_id=$(_kv_get "$state" boot_id)
 count=$(_kv_get "$state" attempts)
-case "$count" in ''|*[!0-9]*) count=0 ;; esac
+case "$count" in '') count=0 ;; 0|1|2) ;; *) count=2 ;; esac
 case "$cmd" in
     begin)
         [ "$id" != "$old_id" ] || exit 0

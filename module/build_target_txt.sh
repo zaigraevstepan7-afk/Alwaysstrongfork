@@ -24,6 +24,22 @@ AS_CFG_ROOT="$(dirname "$TGT")"
 _asmd=$(cd "${0%/*}" 2>/dev/null && pwd); [ -f "$_asmd/as_store.sh" ] || _asmd=/data/adb/modules/tricky_store
 [ -f "$_asmd/as_store.sh" ] && . "$_asmd/as_store.sh"
 
+# One transaction for Action, WebUI and package events. A timed-out PackageManager
+# must neither stall the watcher forever nor publish a partial target list.
+if [ "${2:-}" != __locked ]; then
+    as_init
+    rc=0
+    as_lock_run "$AS_DIR/target.flock" 0 "$AS_NATIVE_TOOL" run-bounded 45 \
+        sh "$_asmd/build_target_txt.sh" "$TGT" __locked || rc=$?
+    [ "$rc" != 75 ] || exit 0
+    exit "$rc"
+fi
+umask 077
+tmp=$(mktemp "${TGT}.write.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 # Bail out early if pm is unreachable -- keep existing target.txt as-is.
 pm list packages >/dev/null 2>&1 || exit 1
 
@@ -144,7 +160,10 @@ FORCED="com.android.vending com.google.android.gms com.google.android.gsf"
             }' "$MAP" | sort | awk -F'\t' '
             $1!=prev{ printf "\n[%s]\n", $1; prev=$1 } { print $2 }'
     fi
-} > "${TGT}.tmp" && mv -f "${TGT}.tmp" "$TGT"
+} | awk '
+    BEGIN { split("de.robv.android.xposed.installer org.lsposed.manager io.github.lsposed.manager org.meowcat.edxposed.manager com.solohsu.android.edxp.manager io.va.exposed com.topjohnwu.lsplant.manager", a, " "); for (i in a) excluded[a[i]]=1 }
+    { name=$0; sub(/[!?]$/, "", name); if (!(name in excluded)) print }
+' > "$tmp" && mv -f "$tmp" "$TGT" || exit 1
 
 # --- GC orphaned WebUI-imported keyboxes ---------------------------------
 # The WebUI records every keybox it imports into alwaysstrong/imported (one
@@ -167,7 +186,8 @@ if [ -f "$MANIFEST" ]; then
     fi
     NEWMAN=""
     while IFS= read -r fn; do
-        [ -n "$fn" ] || continue
+        case "$fn" in ''|.*|keybox.xml|*[!A-Za-z0-9_.-]*) continue ;; esac
+        [ "${fn%.xml}" != "$fn" ] || continue
         [ "$fn" = "keybox.xml" ] && continue
         if printf '%s\n' "$REFERENCED" | grep -Fxq "$fn"; then
             NEWMAN="${NEWMAN}${fn}

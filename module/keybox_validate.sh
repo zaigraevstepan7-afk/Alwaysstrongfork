@@ -4,7 +4,7 @@ set -eu
 umask 077
 V_DIR=$(cd "${0%/*}" && pwd)
 . "$V_DIR/repair_runtime.sh"
-[ "$#" = 1 ] && [ -s "$1" ] || { echo 'keybox: missing file' >&2; exit 1; }
+[ "$#" = 1 ] && [ -f "$1" ] && [ ! -L "$1" ] && [ -s "$1" ] || { echo 'keybox: missing file' >&2; exit 1; }
 V_SIZE=$(wc -c < "$1" | tr -d ' ')
 [ "$V_SIZE" -le 524288 ] || { echo 'keybox: size limit exceeded' >&2; exit 1; }
 V_TMP=$(mktemp -d "${TMPDIR:-/data/local/tmp}/as-keybox-check.XXXXXX")

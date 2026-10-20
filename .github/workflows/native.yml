@@ -8,8 +8,8 @@ name: Native binaries
 # Runs on demand from the Actions tab; tick "commit" to push the new binaries to
 # main, otherwise they are only uploaded as artifacts for testing.
 #
-# The release / nightly workflows never compile - they package whatever is
-# committed here - so run this (with commit) after editing either source tree.
+# Release/nightly builds rebuild supported ARM helpers from their checkout.
+# This manual workflow can refresh all committed ABIs for offline packaging.
 #
 # Every run prints the sha256 of what it built next to the sha256 of what is
 # committed, and says whether they match. That is the check anyone can repeat to

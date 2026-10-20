@@ -49,8 +49,21 @@ jobs:
       - name: Install packaging tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zip unzip
 
-      - name: Use committed native binaries (skip the cargo-ndk step in CI)
-        run: find native -path '*/prebuilt/*' -type f -exec touch {} +
+      - name: Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: false
+
+      - name: Rebuild ARM helpers from this checkout
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -euo pipefail
+          rustup target add aarch64-linux-android armv7-linux-androideabi
+          bash scripts/build-repair-native.sh
+          find native -path '*/prebuilt/*' -type f -exec touch {} +
 
       - name: Version this snapshot apart from the release
         # A nightly is built from whatever is on main, so it is ahead of the last

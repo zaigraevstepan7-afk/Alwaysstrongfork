@@ -7,7 +7,7 @@ case "$MODE" in apply|check) ;; *) echo 'Usage: boot_props.sh [apply|check]' >&2
 command -v resetprop >/dev/null 2>&1 || { echo 'resetprop unavailable'; exit 1; }
 for name in ro.bootmode ro.boot.mode ro.boot.bootmode vendor.bootmode; do
     case "$(getprop "$name" 2>/dev/null)" in
-        recovery|charger|rescue|fastboot) echo 'Non-normal boot: property policy skipped'; exit 0 ;;
+        recovery|charger|rescue|fastboot|fastbootd) echo 'Non-normal boot: property policy skipped'; exit 0 ;;
     esac
 done
 changed=0; checked=0; failed=0

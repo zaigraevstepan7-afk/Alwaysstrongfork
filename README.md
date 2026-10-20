@@ -62,15 +62,17 @@ Install **one variant at a time**. Release ZIPs are ready to install; do not ext
 
 ## Optional mount isolation companion
 
-`AlwaysStrong-Isolation-<version>.zip` is a **separate experimental module**, not a fourth PIF variant. It adds a native Zygisk component without replacing the main module's PIF library. Install it only if you want per-app module mount isolation and private copies of module-provided font mappings.
+`AlwaysStrong-Isolation-<version>.zip` is a **separate experimental module**, not a fourth PIF variant. It adds a native Zygisk component without replacing the main module's PIF library. The initial selected package is Duck Detector; its WebUI accepts exact package names.
 
-The initial selected package is Duck Detector, taken from the supplied scan. Its WebUI lets you change exact package names and disable private font copies. Only read-only, private `.ttf` / `.otf` mappings under `/data/adb/modules/*/system/fonts/` are copied; bytes, addresses, and read-only protection are preserved. The original fonts and font module are left intact. The code then requests Zygisk's per-process module unmount operation and unloads its own library.
+**Repair 1.4.2 removes font memory remapping.** The previous implementation could crash an app if a mapped file changed or became unreadable. Old `private-fonts=1` settings cannot re-enable it. Existing font paths may therefore remain visible.
 
-Requires Android 10+, ARM64/ARMv7, and a compatible **Zygisk API v5 provider** (Magisk 27000+ or a provider implementing the API). Google Play, Soter, system processes, root-granted UIDs, and isolated UIDs are excluded. KernelSU/APatch behavior depends on the installed Zygisk provider and is not device-verified.
+The companion stays inactive during boot and only permits the documented per-process unmount request after Android completes boot and remains up for **120 seconds**. A readiness token must match the current boot ID; a missing/stale token, disable/remove marker, bad config or IPC timeout results in no action. The request/response share a 150 ms monotonic deadline after the provider returns a connection. Config opens reject FIFOs, symlinks and oversized/nonregular files. The provider's own `connectCompanion()` call is outside this deadline.
 
-Install the companion through the root manager, reboot, and restart the selected app. The default font-copy option is experimental and consumes private memory; disable it in the companion WebUI if necessary. Disable the companion and reboot to remove its behavior. It does not hide installed packages or repair vendor Soter keys. Host tests and Android cross-compilation do not establish a clean detector result on a phone.
+Requires Android 10+, ARM64/ARMv7, and a compatible **Zygisk API v5 provider** (Magisk 27000+ or a provider implementing the API). Google Play, Soter, system processes, root-granted UIDs, SDK sandbox UIDs, isolated UIDs and child zygotes are excluded. KernelSU/APatch behavior depends on the installed provider and is not device-verified.
 
-See [report analysis](docs/DETECTOR_REPORT.md) and [native component details](native/isolation/README.md).
+Install through the root manager, reboot, wait for activation and fully restart a selected app. Disable the companion and reboot to remove its behavior. It does not hide installed packages, repair vendor Soter keys or guarantee any detector result.
+
+See [boot safety review](docs/BOOT_SAFETY_REVIEW.md), [report analysis](docs/DETECTOR_REPORT.md) and [native component details](native/isolation/README.md).
 
 ## Installation
 
@@ -173,7 +175,7 @@ These are property views, not hardware bootloader or AVB validation. The policy 
 | WebUI does not open | Check your WebUI host and its root access. After updating, fully close the old window and reopen it. |
 | The module disabled itself after several boots | Check `alwaysstrong/boot-state`, `boot-safe`, and the logs. The guard disables this module after three boot attempts without a stable checkpoint. |
 | The engine did not start and `boot-props.log` reports a mismatch | A property write failed or timed out; inspect the named property and root-manager compatibility. A skipped launch does not prove a successful attestation. |
-| The engine stopped restarting until reboot | The supervisor pauses after three rapid exits or repeated `keystore2` restarts. Investigate the logs. |
+| The engine stopped restarting until reboot | The supervisor pauses after three unconfirmed launches or repeated `keystore2` restarts; the launch budget survives supervisor crashes within the same boot. Investigate the logs. |
 
 Use **Collect logs** in WebUI or run this command in a root shell:
 
@@ -192,8 +194,8 @@ Uninstall through your root manager, then reboot. The uninstall script removes s
 [Build AlwaysStrongFork](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml) runs on pushes to `main`, pull requests, and manual dispatch:
 
 1. Checks shell and JavaScript syntax.
-2. Builds host `asfetch` and runs **54 Python + 6 Rust tests**.
-3. Rebuilds Android `asfetch` for ARM64 / ARMv7 with NDK r27c. Watcher uses the committed prebuilts.
+2. Builds host `asfetch` and runs **64 Python + 6 Rust tests**.
+3. Rebuilds Android `asfetch` and `aswatcher` from the checkout for ARM64 / ARMv7 with NDK r27c.
 4. Builds the default, Inject, and Lite ZIPs, verifies their structure, builds the optional Zygisk isolation companion, and generates `SHA256SUMS.txt`.
 
 After a successful `main` push build, the [Release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/release.yml) workflow publishes the version from `module/module.prop` with three main-module ZIPs, the optional experimental isolation companion, and checksums. For an already published version, it synchronizes the release title and notes while preserving the existing assets. To publish a new version, increment `version` and `versionCode` and add `releases/<version>.md`.
@@ -211,7 +213,7 @@ bash build.sh --variant nopif         # Lite
 bash build.sh --variant fork,inject,nopif
 ```
 
-Rebuilding native components also requires Rust, Android targets, and the NDK. Scripts are in [`scripts/`](scripts/), with sources in [`native/`](native/). TrickyStoreOSS / JingMatrix TEESimulator engines remain available in the source as additional variants; they are not included in standard releases.
+After changing native sources, run `bash scripts/build-repair-native.sh` with Rust, Android targets, and `ANDROID_NDK_HOME` before local packaging. Release CI always rebuilds the ARM helpers from source. Scripts are in [`scripts/`](scripts/), with sources in [`native/`](native/). TrickyStoreOSS / JingMatrix TEESimulator engines remain available in the source as additional variants; they are not included in standard releases.
 
 Verify the completed archives:
 

@@ -1,5 +1,16 @@
 # AlwaysStrong changelog
 
+## AlwaysStrongFork v1.0.5-repair.1.4.2
+
+- Remove unsafe native font-memory replacement from the optional Isolation companion; old enable flags cannot restore it.
+- Keep Isolation inactive until boot completion plus a 120-second settle period; validate current-boot readiness and disable/remove markers.
+- Bound the complete native IPC exchange with one monotonic deadline; reject blocking/nonregular config inputs and SDK sandbox/child-zygote processes.
+- Persist the TEE launch budget across supervisor crashes within a boot; use monotonic uptime, bound every pre-launch keybox check, and handle corrupted boot counters conservatively.
+- Stop the deadline helper from blocking in `wait()` after a timeout when a killed worker remains in kernel I/O.
+- Serialize target-list rebuilds, bound PackageManager work, publish unique temporary files atomically and remove the watcher's in-place target truncation. Reject unsafe imported-file cleanup paths.
+- Rebuild both ARM helpers from source in release CI. Run 64 Python + 6 Rust tests, including 10 new regression cases; cross-compile and validate all four ZIPs.
+- This is a source audit and build-verified stability update. No physical Android boot test was performed; third-party TEE/PIF binaries and provider internals remain outside full source/runtime verification.
+
 ## AlwaysStrongFork v1.0.5-repair.1.4.1
 
 - Add a separate experimental Zygisk isolation companion with exact per-package selection and protected UID/process exclusions.

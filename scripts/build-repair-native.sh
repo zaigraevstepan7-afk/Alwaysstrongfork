@@ -14,4 +14,7 @@ for spec in 'aarch64-linux-android:arm64-v8a:aarch64-linux-android' 'armv7-linux
       "CC_$env_target=$TOOL/${clang_target}29-clang" "AR_$env_target=$TOOL/llvm-ar" \
       cargo build --locked --release --target "$target" --manifest-path "$ROOT/native/asfetch/Cargo.toml"
   cp "$ROOT/native/asfetch/target/$target/release/asfetch" "$ROOT/native/asfetch/prebuilt/$abi/asfetch"
+  env "CARGO_TARGET_${upper}_LINKER=$TOOL/${clang_target}29-clang" \
+      cargo build --locked --release --target "$target" --manifest-path "$ROOT/native/watcher/Cargo.toml"
+  cp "$ROOT/native/watcher/target/$target/release/aswatcher" "$ROOT/native/watcher/prebuilt/$abi/aswatcher"
 done
