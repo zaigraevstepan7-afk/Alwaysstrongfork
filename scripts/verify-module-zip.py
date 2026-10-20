@@ -11,15 +11,20 @@ def verify(path):
         'META-INF/com/google/android/updater-script',
         'webroot/index.html', 'webroot/main.js', 'webroot/app.css',
         'attest.sh', 'engine.sh',
-        'tee_classes.dex', 'classes.dex',
+        'tee_classes.dex',
         'lib/arm64-v8a/libTEESimulator.so', 'lib/arm64-v8a/libinject.so',
         'lib/armeabi-v7a/libTEESimulator.so', 'lib/armeabi-v7a/libinject.so',
         'bin/arm64-v8a/asfetch', 'bin/armeabi-v7a/asfetch',
         'bin/arm64-v8a/aswatcher', 'bin/armeabi-v7a/aswatcher',
-        'zygisk/arm64-v8a.so', 'zygisk/armeabi-v7a.so',
     }
     with zipfile.ZipFile(path) as archive:
         assert archive.testzip() is None, f'{path}: corrupt ZIP entry'
+        engine = archive.read('engine.sh').decode()
+        if 'ENGINE=none' in engine.splitlines():
+            assert 'classes.dex' not in archive.namelist(), f'{path}: Lite contains PIF dex'
+            assert not any(n.startswith('zygisk/') and n.endswith('.so') for n in archive.namelist()), f'{path}: Lite contains PIF libraries'
+        else:
+            required.update({'classes.dex', 'zygisk/arm64-v8a.so', 'zygisk/armeabi-v7a.so'})
         missing = required - set(archive.namelist())
         assert not missing, f'{path}: missing {sorted(missing)}'
         props = dict(line.split('=', 1) for line in archive.read('module.prop').decode().splitlines()

@@ -1,6 +1,6 @@
 {
-  "version": "v1.0.5",
-  "versionCode": 105,
-  "zipUrl": "https://github.com/evoker0/AlwaysStrong/releases/download/v1.0.5/AlwaysStrong-v1.0.5-inject.zip",
-  "changelog": "https://raw.githubusercontent.com/evoker0/AlwaysStrong/main/CHANGELOG.md"
+  "version": "v1.0.5-repair.1.3.1",
+  "versionCode": 111,
+  "zipUrl": "https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/download/v1.0.5-repair.1.3.1/AlwaysStrong-v1.0.5-repair.1.3.1-inject.zip",
+  "changelog": "https://raw.githubusercontent.com/zaigraevstepan7-afk/Alwaysstrongfork/main/releases/v1.0.5-repair.1.3.1.md"
 }

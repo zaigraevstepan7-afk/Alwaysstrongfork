@@ -1,1 +1,1 @@
-AlwaysStrong Repair: validated atomic keybox updates, local recovery, checker JSON status. Magisk / KernelSU / APatch.
+AlwaysStrongFork by @SUKISU_ULTR4. Validated keybox updates, local recovery and imported checker results.

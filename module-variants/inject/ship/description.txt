@@ -1,1 +1,1 @@
-Strong Play Integrity in one drop-in module. Hardware attestation + a Pixel fingerprint kept fresh automatically.
+PlayIntegrityFix inject-s + TEESimulator-RS. Validated keybox updates and local recovery. Check Play Integrity separately.

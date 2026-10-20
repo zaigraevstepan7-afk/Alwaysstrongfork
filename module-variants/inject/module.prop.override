@@ -1,6 +1,4 @@
-# module.prop keys this line overrides, applied by build.sh after module/ is
-# staged. version / versionCode are not overridable — they stay defined once, in
-# module/module.prop. The two lines update independently, hence the manifest.
-name=AlwaysStrong [Inject]
-updateJson=https://raw.githubusercontent.com/evoker0/AlwaysStrong/main/update-inject.json
-description=[Inject build] Strong Play Integrity in one drop-in module. Hardware attestation + an auto-refreshed Pixel fingerprint. Tap Action.
+# Variant metadata; version, versionCode and id come from module/module.prop.
+name=AlwaysStrongFork [Inject]
+updateJson=https://raw.githubusercontent.com/zaigraevstepan7-afk/Alwaysstrongfork/main/update-inject.json
+description=PlayIntegrityFix inject-s + TEESimulator-RS. Validated keybox updates and local recovery. Check Play Integrity separately.
