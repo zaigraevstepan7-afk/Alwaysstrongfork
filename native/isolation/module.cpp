@@ -1,4 +1,8 @@
 // Copyright 2026 AlwaysStrongFork contributors. GPL-3.0-or-later.
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+#include <sys/types.h>
 #include "vendor/zygisk.hpp"
 #include "policy.hpp"
 #include "font_copy.hpp"
