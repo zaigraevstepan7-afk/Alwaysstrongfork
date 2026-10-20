@@ -320,6 +320,11 @@ command -v wget >/dev/null 2>&1 && test_engine "wget       " wget -q -T 5 -O "$N
 echo "last-good engine (cached): $(st_get kb_engine || echo none)"
 rm -rf "$NT"; trap - EXIT INT TERM
 
+sec "Soter read-only environment"
+if [ -f "$MODDIR/soter_diagnose.sh" ]; then
+    bounded 8 sh "$MODDIR/soter_diagnose.sh"
+fi
+
 sec "Module logs on disk"
 # logcat_cleanup.sh silences our own logcat tags at the source
 # (persist.log.tag.AlwaysStrong*=S) unless logcat_cleanup=0 is set, so the

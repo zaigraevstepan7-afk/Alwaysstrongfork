@@ -1,0 +1,9 @@
+id=alwaysstrong_isolation
+name=AlwaysStrongFork Mount Isolation [Experimental]
+version=v1.0.5-repair.1.4.1
+versionCode=113
+author=@SUKISU_ULTR4
+summary=Optional per-app mount isolation through Zygisk.
+description=Experimental: isolate mounts and privately copy module font mappings in selected app processes. Does not hide installed packages or repair Soter hardware.
+support=https://t.me/alwaysstrongfork
+updateJson=https://raw.githubusercontent.com/zaigraevstepan7-afk/Alwaysstrongfork/main/update-isolation.json

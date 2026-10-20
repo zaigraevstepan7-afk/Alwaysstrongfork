@@ -25,9 +25,10 @@ jobs:
           set -euo pipefail
           while IFS= read -r -d '' file; do
             bash -n "$file"
-          done < <(find module module-variants attest scripts -type f \( -name '*.sh' -o -name 'build.conf' \) -print0)
+          done < <(find module module-variants attest scripts isolation-module -type f \( -name '*.sh' -o -name 'build.conf' \) -print0)
           bash -n build.sh module/daemon module/META-INF/com/google/android/update-binary
           node --check module/webroot/main.js
+          node --check isolation-module/webroot/main.js
 
       - name: Build native host helper and run regression tests
         run: |
@@ -57,7 +58,9 @@ jobs:
           # The unchanged watcher is supplied for all four Android ABIs.
           find native -path '*/prebuilt/*' -type f -exec touch {} +
           bash build.sh --variant fork,inject,nopif
-          python3 scripts/verify-module-zip.py out/AlwaysStrong-*.zip
+          bash scripts/build-isolation.sh
+          python3 scripts/verify-module-zip.py out/AlwaysStrong-v*.zip
+          python3 scripts/verify-isolation-zip.py out/AlwaysStrong-Isolation-*.zip
           (cd out && sha256sum AlwaysStrong-*.zip > SHA256SUMS.txt)
           {
             echo '### Installable AlwaysStrongFork ZIP'

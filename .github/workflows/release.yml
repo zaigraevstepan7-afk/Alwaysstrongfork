@@ -70,12 +70,14 @@ jobs:
           EXISTING_DRAFT: ${{ steps.version.outputs.existing }}
         run: |
           set -euo pipefail
-          python3 scripts/verify-module-zip.py out/AlwaysStrong-*.zip
+          python3 scripts/verify-module-zip.py out/AlwaysStrong-v*.zip
+          python3 scripts/verify-isolation-zip.py out/AlwaysStrong-Isolation-*.zip
           (cd out && sha256sum -c SHA256SUMS.txt)
           for suffix in '' '-inject' '-nopif'; do
             test -s "out/AlwaysStrong-${VERSION}${suffix}.zip"
           done
-          test "$(find out -maxdepth 1 -name '*.zip' | wc -l)" -eq 3
+          test -s "out/AlwaysStrong-Isolation-${VERSION}.zip"
+          test "$(find out -maxdepth 1 -name '*.zip' | wc -l)" -eq 4
           if [ "$EXISTING_DRAFT" != true ]; then
             gh release create "$VERSION" --draft --target "$SOURCE_SHA" \
               --title "AlwaysStrongFork $VERSION" --notes-file "releases/$VERSION.md"

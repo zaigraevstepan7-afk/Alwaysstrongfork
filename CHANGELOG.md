@@ -1,5 +1,14 @@
 # AlwaysStrong changelog
 
+## AlwaysStrongFork v1.0.5-repair.1.4.1
+
+- Add a separate experimental Zygisk isolation companion with exact per-package selection and protected UID/process exclusions.
+- Add optional private read-only copies of module-provided font mappings, preserving addresses and bytes while removing the original file backing from those selected process mappings.
+- Request per-process module unmounting and unload the companion library after specialization; keep the main PIF libraries unchanged.
+- Add read-only Soter environment diagnostics without vendor key creation/deletion or placeholder success results.
+- Add 4 tests covering native package policy, actual font mapping replacement, and config validation; total 54 Python + 6 Rust tests.
+- Publish 3 main ZIP variants plus the separate experimental companion. No physical-device or all-clear detector claim.
+
 ## AlwaysStrongFork v1.0.5-repair.1.4.0
 
 - Apply and verify one bounded session-only boot property policy before TEE startup and owned daemon restarts; remove the asynchronous startup race.

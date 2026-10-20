@@ -60,6 +60,18 @@ The module is intended for Play Integrity on rooted devices. **BASIC / DEVICE / 
 
 Install **one variant at a time**. Release ZIPs are ready to install; do not extract them before selecting one in your root manager. Checksums are provided in `SHA256SUMS.txt`.
 
+## Optional mount isolation companion
+
+`AlwaysStrong-Isolation-<version>.zip` is a **separate experimental module**, not a fourth PIF variant. It adds a native Zygisk component without replacing the main module's PIF library. Install it only if you want per-app module mount isolation and private copies of module-provided font mappings.
+
+The initial selected package is Duck Detector, taken from the supplied scan. Its WebUI lets you change exact package names and disable private font copies. Only read-only, private `.ttf` / `.otf` mappings under `/data/adb/modules/*/system/fonts/` are copied; bytes, addresses, and read-only protection are preserved. The original fonts and font module are left intact. The code then requests Zygisk's per-process module unmount operation and unloads its own library.
+
+Requires Android 10+, ARM64/ARMv7, and a compatible **Zygisk API v5 provider** (Magisk 27000+ or a provider implementing the API). Google Play, Soter, system processes, root-granted UIDs, and isolated UIDs are excluded. KernelSU/APatch behavior depends on the installed Zygisk provider and is not device-verified.
+
+Install the companion through the root manager, reboot, and restart the selected app. The default font-copy option is experimental and consumes private memory; disable it in the companion WebUI if necessary. Disable the companion and reboot to remove its behavior. It does not hide installed packages or repair vendor Soter keys. Host tests and Android cross-compilation do not establish a clean detector result on a phone.
+
+See [report analysis](docs/DETECTOR_REPORT.md) and [native component details](native/isolation/README.md).
+
 ## Installation
 
 1. Download a ZIP from the [latest release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/releases/latest).
@@ -180,11 +192,11 @@ Uninstall through your root manager, then reboot. The uninstall script removes s
 [Build AlwaysStrongFork](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/build.yml) runs on pushes to `main`, pull requests, and manual dispatch:
 
 1. Checks shell and JavaScript syntax.
-2. Builds host `asfetch` and runs **50 Python + 6 Rust tests**.
+2. Builds host `asfetch` and runs **54 Python + 6 Rust tests**.
 3. Rebuilds Android `asfetch` for ARM64 / ARMv7 with NDK r27c. Watcher uses the committed prebuilts.
-4. Builds the default, Inject, and Lite ZIPs, verifies their structure, and generates `SHA256SUMS.txt`.
+4. Builds the default, Inject, and Lite ZIPs, verifies their structure, builds the optional Zygisk isolation companion, and generates `SHA256SUMS.txt`.
 
-After a successful `main` push build, the [Release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/release.yml) workflow publishes the version from `module/module.prop` with three installation ZIPs and checksums. For an already published version, it synchronizes the release title and notes while preserving the existing assets. To publish a new version, increment `version` and `versionCode` and add `releases/<version>.md`.
+After a successful `main` push build, the [Release](https://github.com/zaigraevstepan7-afk/Alwaysstrongfork/actions/workflows/release.yml) workflow publishes the version from `module/module.prop` with three main-module ZIPs, the optional experimental isolation companion, and checksums. For an already published version, it synchronizes the release title and notes while preserving the existing assets. To publish a new version, increment `version` and `versionCode` and add `releases/<version>.md`.
 
 Test ZIPs are also available in the `AlwaysStrongFork-module-zip` artifact. **Extract the outer artifact archive**, then install one of the ZIPs inside. Actions artifacts are retained for 90 days; published installation files are available in Releases.
 
@@ -204,7 +216,7 @@ Rebuilding native components also requires Rust, Android targets, and the NDK. S
 Verify the completed archives:
 
 ```bash
-python3 scripts/verify-module-zip.py out/AlwaysStrong-*.zip
+python3 scripts/verify-module-zip.py out/AlwaysStrong-v*.zip
 (cd out && sha256sum -c SHA256SUMS.txt)
 ```
 
