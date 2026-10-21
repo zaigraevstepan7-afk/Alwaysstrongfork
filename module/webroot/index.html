@@ -50,6 +50,13 @@
         <div class="repair-switch"><span>Автовосстановление по результату чекера<small>Новая загрузка при потере проверки, не чаще 1 раза за 6 часов. Включает замену личного keybox с резервной копией.</small></span><label class="sw"><input type="checkbox" id="autoRepairSw" checked><span class="sl"></span></label></div>
       </div></div>
 
+      <div class="grp"><div class="card repair-panel action-panel">
+        <div class="repair-heading"><span class="panel-title">Action</span></div>
+        <p class="repair-note">Запуск обычного Action модуля с выводом лога. После завершения повторите проверку в чекере.</p>
+        <div class="repair-actions"><button type="button" id="runAction">▶ Action</button><button type="button" class="secondary" id="viewActionLog">Открыть лог</button></div>
+        <p class="repair-note" id="actionSummary" role="status">Ещё не запускался из WebUI.</p>
+      </div></div>
+
       <div class="grp"><div class="card statusbar">
         <span class="sk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3"/><path d="m17 6 2 2"/><path d="m14.5 8.5 2 2"/></svg></span>
         <span class="lab"><span data-i="status">Keybox status</span><small>Device verdict not checked</small></span>
@@ -195,6 +202,19 @@
       <span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.3"/><circle cx="9" cy="17" r="2.3"/></svg></span>
       <span class="lb" data-i="tab_adv">Advanced</span></button>
   </div></nav>
+
+  <!-- Action output survives closing this dialog or the host WebUI. -->
+  <div class="modal" id="actionModal" hidden>
+    <div class="dialog">
+      <div class="dhead"><div class="dt">Action · Лог</div><button type="button" class="ib" id="actionClose" aria-label="Закрыть">×</button></div>
+      <div class="dbody">
+        <p class="sd" id="actionStatus" role="status">Загрузка…</p>
+        <pre id="actionOutput" tabindex="0" aria-label="Лог выполнения Action"></pre>
+        <p class="repair-note">Последние 64 КиБ. Полный лог: /data/adb/tricky_store/alwaysstrong/logs/action-webui.log</p>
+        <div class="srow dialog-actions"><button type="button" class="pill" id="actionRefresh">Обновить лог</button></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Language picker -->
   <div class="modal" id="langModal" hidden>

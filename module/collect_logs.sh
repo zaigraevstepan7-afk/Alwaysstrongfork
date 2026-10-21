@@ -336,6 +336,8 @@ echo "--- denylist.log (optional target sync)"; tail_or denylist.log "$AS_LOGS/d
 echo "--- autopif.log (fingerprint fetch)"; tail_or autopif.log "$AS_LOGS/autopif.log" 40
 echo "--- action-boot.log (first-boot Action)"; tail_or action-boot.log "$AS_LOGS/action-boot.log" 60
 echo "--- action-reset.log (Reset to defaults)"; tail_or action-reset.log "$AS_LOGS/action-reset.log" 40
+echo "--- action-webui.log (WebUI Action)"; tail_or action-webui.log "$AS_LOGS/action-webui.log" 100
+echo "--- action-webui.status"; tail_or action-webui.status "$AS_LOGS/action-webui.status" 5
 echo "--- module.log"; tail_or module.log "$MODDIR/logs/module.log" 60
 
 sec "SELinux denials / crashes around keystore"

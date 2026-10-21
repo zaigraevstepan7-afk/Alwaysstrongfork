@@ -83,7 +83,7 @@ install_file "engine.sh" "$MODPATH"
 # shellcheck source=/dev/null
 . "$MODPATH/engine.sh"
 
-for f in module.prop service.sh post-fs-data.sh action.sh \
+for f in module.prop service.sh post-fs-data.sh action.sh webui_action.sh \
          uninstall.sh common_func.sh as_store.sh sepolicy.rule \
          keybox_fetch.sh keybox_validate.sh keybox_validate.awk keybox_manage.sh repair_init.sh repair_runtime.sh verdict_report.sh auto_repair.sh boot_safety.sh boot_prepare.sh attest_supervise.sh build_target_txt.sh status_fetch.sh description.txt \
          rom_spoof_block.sh conflict_scan.sh sync_patch.sh patch_resolve.sh beta_pif.sh \

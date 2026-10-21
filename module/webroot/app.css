@@ -132,6 +132,8 @@ input,textarea{-webkit-user-select:text;user-select:text}svg{display:block;flex-
 .tab .pic{display:grid;place-items:center;flex-shrink:0;width:24px;height:24px}.tab svg{width:19px;height:19px}.tab .lb{font-size:10px;font-weight:700;line-height:1.4;overflow-wrap:anywhere;text-align:left}
 .tab.on{background:var(--a-soft);color:var(--accent)}.tab:active{transform:scale(.97)}
 .toast{position:fixed;left:50%;bottom:calc(94px + env(safe-area-inset-bottom,0px));z-index:100;transform:translate(-50%,10px);max-width:calc(100% - 40px);width:max-content;background:var(--ink);color:var(--card);padding:12px 16px;border-radius:15px;box-shadow:0 8px 28px #050e2526;font-size:12px;line-height:1.6;text-align:center;overflow-wrap:anywhere;opacity:0;pointer-events:none;transition:opacity .2s,transform .24s var(--ease)}.toast.show{opacity:1;transform:translate(-50%,0)}
+#actionOutput{margin:0;padding:14px;min-height:150px;max-height:48dvh;overflow:auto;border:1px solid var(--line);border-radius:13px;background:var(--field);color:var(--ink);font:11px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
+.action-panel button:disabled{opacity:.55;cursor:wait}
 .empty{display:none;padding:28px 16px;font-size:12px;line-height:1.65;color:var(--sub);text-align:center}
 .search{display:flex;align-items:center;gap:9px;min-height:44px;padding:10px 12px;margin:0 0 14px;background:var(--field);border:1px solid var(--line);border-radius:13px}
 .search svg{width:17px;height:17px;color:var(--sub);flex-shrink:0}.search input{width:100%;flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--ink);font-size:12px;line-height:1.5}.search input::placeholder{color:var(--faint)}

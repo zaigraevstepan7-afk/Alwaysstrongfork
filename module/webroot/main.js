@@ -20,12 +20,15 @@
   function dkRow(dk){ return q('[data-k="'+dk+'"]'); }
 
   // ---- KSU/APatch/Magisk root bridge ----
-  function ksuExec(cmd){
+  function ksuExec(cmd,timeoutMs){
     return new Promise(function(resolve){
       if(typeof ksu==="undefined"||!ksu.exec){ resolve({errno:-1,stdout:"",stderr:"no bridge"}); return; }
       var cb="__cb"+Date.now()+Math.floor(Math.random()*1e6);
-      window[cb]=function(errno,stdout,stderr){ delete window[cb]; resolve({errno:errno,stdout:stdout||"",stderr:stderr||""}); };
-      try{ ksu.exec(cmd,"{}",cb); }catch(e){ delete window[cb]; resolve({errno:-1,stdout:"",stderr:String(e)}); }
+      var timer;
+      function finish(errno,stdout,stderr){ clearTimeout(timer); delete window[cb]; resolve({errno:errno,stdout:stdout||"",stderr:stderr||""}); }
+      window[cb]=finish;
+      if(timeoutMs) timer=setTimeout(function(){ finish(-2,"","root bridge timeout"); },timeoutMs);
+      try{ ksu.exec(cmd,"{}",cb); }catch(e){ finish(-1,"",String(e)); }
     });
   }
   function ksuBg(cmd){ return ksuExec("({ "+cmd+" ; } >/dev/null 2>&1 &) ; echo ok"); }
@@ -744,6 +747,75 @@
       readAll().then(function(S){ paint(S); });
     });
   });
+  // ---- Manual Action: short bridge calls, persistent output and reconnect ----
+  var actionButton=document.getElementById("runAction"), actionModal=q("#actionModal");
+  var actionOutput=q("#actionOutput"), actionStatus=q("#actionStatus"), actionSummary=q("#actionSummary");
+  var actionTimer=null, actionPending=false, actionRunning=false;
+  function actionRequest(command){ return ksuExec("sh "+shq(MOD+"/webui_action.sh")+" "+command+" 2>&1",10000); }
+  function actionMessage(message){ actionStatus.textContent=message; actionSummary.textContent=message; }
+  function pollAction(){
+    clearTimeout(actionTimer);
+    if(actionPending || document.hidden) return;
+    actionPending=true; actionButton.disabled=true;
+    actionRequest("status").then(function(r){
+      actionPending=false;
+      if(Number(r.errno)!==0){
+        // The worker may still be running: never claim that a bridge error
+        // cancelled it. A fresh status request is safe even after a lost reply.
+        actionButton.disabled=false;
+        actionMessage("Нет связи с root-мостом. Откройте лог повторно для проверки статуса.");
+        return;
+      }
+      var output=r.stdout||"", split=output.indexOf("--log--\n");
+      if(split<0){ actionButton.disabled=false; actionMessage("Не удалось прочитать статус Action."); return; }
+      var header=output.slice(0,split), state=(header.match(/^state=(.*)$/m)||[])[1];
+      var code=(header.match(/^code=(.*)$/m)||[])[1], wasRunning=actionRunning;
+      actionRunning=state==="running";
+      var nearBottom=actionOutput.scrollHeight-actionOutput.scrollTop-actionOutput.clientHeight<48;
+      // Shell output is untrusted text, never HTML.
+      actionOutput.textContent=output.slice(split+8)||"Лог пока пуст.";
+      if(nearBottom) actionOutput.scrollTop=actionOutput.scrollHeight;
+      var message=actionRunning?"Action выполняется… Можно закрыть это окно.":
+        state==="idle"?"Ещё не запускался из WebUI.":
+        state==="interrupted"?"Запуск прерван. Смотрите сохранённый лог.":
+        code==="0"?"Action завершён. Повторите проверку в чекере.":
+        code==="75"?"Другой Action уже работает. Повторите запуск после его завершения.":
+        code==="124"?"Превышено время выполнения (8 минут). Смотрите лог.":
+        "Action завершился с ошибкой (код "+code+"). Смотрите лог.";
+      actionMessage(message);
+      actionButton.disabled=actionRunning;
+      actionButton.textContent=actionRunning?"Action выполняется…":"▶ Action";
+      if(actionRunning) actionTimer=setTimeout(pollAction,1000);
+      else if(wasRunning) readAll().then(function(S){ paint(S); });
+    });
+  }
+  if(actionButton && actionModal){
+    actionButton.disabled=true;
+    actionButton.addEventListener("click",function(){
+      if(actionPending || actionRunning) return;
+      clearTimeout(actionTimer); actionPending=true; actionButton.disabled=true;
+      openM(actionModal); actionMessage("Запуск Action…");
+      actionRequest("start").then(function(r){
+        actionPending=false;
+        if(Number(r.errno)!==0){
+          actionButton.disabled=false;
+          actionMessage("Запуск не подтверждён. Обновите лог, чтобы проверить статус.");
+          return;
+        }
+        pollAction();
+      });
+    });
+    q("#viewActionLog").addEventListener("click",function(){ openM(actionModal); pollAction(); });
+    q("#actionRefresh").addEventListener("click",pollAction);
+    q("#actionClose").addEventListener("click",function(){ closeM(actionModal); });
+    actionModal.addEventListener("click",function(e){ if(e.target===actionModal) closeM(actionModal); });
+    document.addEventListener("visibilitychange",function(){
+      if(document.hidden) clearTimeout(actionTimer); else pollAction();
+    });
+    window.addEventListener("pagehide",function(){ clearTimeout(actionTimer); });
+    window.addEventListener("pageshow",pollAction);
+    pollAction();
+  }
   var importButton=document.getElementById("importVerdict");
   if(importButton) importButton.addEventListener("click",function(){
     var box=document.getElementById("verdictJson"), text=box.value.trim();

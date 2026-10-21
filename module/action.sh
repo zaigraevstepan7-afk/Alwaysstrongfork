@@ -55,6 +55,15 @@ fi
 CONFIG_DIR=/data/adb/tricky_store
 # Our own settings/state/logs (one directory, see as_store.sh).
 [ -f "$MODPATH/as_store.sh" ] && . "$MODPATH/as_store.sh" && as_init
+# Share one lock across manager taps, WebUI, reset and the boot auto-action.
+# The inherited native descriptor remains held by the actual worker.
+if [ "${AS_ACTION_LOCKED:-0}" != 1 ]; then
+    export AS_ACTION_LOCKED=1
+    rc=0
+    as_lock_run "$AS_TMP/action.flock" 0 sh "$MODPATH/action.sh" "$@" || rc=$?
+    [ "$rc" != 75 ] || echo "Action is already running; try again after it finishes."
+    exit "$rc"
+fi
 : "${AS_LOGS:=/data/adb/tricky_store/alwaysstrong/logs}"
 mkdir -p "$AS_LOGS" 2>/dev/null
 LINE="========================="
