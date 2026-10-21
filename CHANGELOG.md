@@ -1,5 +1,12 @@
 # AlwaysStrong changelog
 
+## AlwaysStrongFork v1.0.5-repair.1.4.3
+
+- Fix mksh version-pattern parsing that hid row(), and repeat the BusyBox hop for each new Action process.
+- Add WebUI Action with persistent live output, native duplicate-run locks and an eight-minute deadline.
+- Propagate step failures/warnings to the UI and add full Action shell compatibility fixtures.
+- Bump module/update metadata and rebuild all installable variants with CI verification.
+
 ## AlwaysStrongFork v1.0.5-repair.1.4.2
 
 - Remove unsafe native font-memory replacement from the optional Isolation companion; old enable flags cannot restore it.

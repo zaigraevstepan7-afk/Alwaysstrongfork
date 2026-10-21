@@ -79,6 +79,13 @@ class WebUIActionTests(unittest.TestCase):
         self.assertIn('state=interrupted\ncode=143', result)
         self.assertIn('preserved', result)
 
+    def test_warning_exit_status_reaches_webui(self):
+        self.worker('echo warning; exit 2\n')
+        self.request('start')
+        done = self.wait_status('state=finished')
+        self.assertIn('code=2', done)
+        self.assertIn('warning', done)
+
     def test_native_deadline_stops_worker(self):
         runner = self.mod / 'webui_action.sh'
         runner.write_text(runner.read_text().replace('as_bounded 480', 'as_bounded 1'))

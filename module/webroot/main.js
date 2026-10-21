@@ -123,6 +123,7 @@
     if(hs && mainTab && mainTab.classList.contains("on")) hs.textContent=tr("spoofing","Spoofing")+" "+m; }
   function setToggle(dk,on){ var i=dkInput(dk); if(i) i.checked=!!on; }
   function paint(S){
+    var versionLabel=q("#moduleVersion"); if(versionLabel && S.ver) versionLabel.textContent=S.ver;
     // hero: spoofed device
     setHeroModel((S.pif_model||S.model||"").trim());
     // status
@@ -779,6 +780,7 @@
         state==="idle"?"Ещё не запускался из WebUI.":
         state==="interrupted"?"Запуск прерван. Смотрите сохранённый лог.":
         code==="0"?"Action завершён. Повторите проверку в чекере.":
+        code==="2"?"Action завершён с предупреждениями. Смотрите лог.":
         code==="75"?"Другой Action уже работает. Повторите запуск после его завершения.":
         code==="124"?"Превышено время выполнения (8 минут). Смотрите лог.":
         "Action завершился с ошибкой (код "+code+"). Смотрите лог.";

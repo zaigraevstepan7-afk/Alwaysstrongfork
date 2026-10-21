@@ -14,15 +14,16 @@ cd "$MODPATH" 2>/dev/null
 # start it with /system/bin/sh — mksh — and the `set +o standalone` below is a
 # special-builtin error there: mksh exits on it, silently (stderr is discarded),
 # and the Action screen sits black with no output at all. Everything below is
-# written for ash, so re-exec once under the first busybox we find (AS_ASH marks
-# the hop; the exported env — AS_FAST, the "logs" argument — survives exec).
+# prefers ash, so re-exec once per process under the first busybox we find.
+# A boolean AS_ASH survives the native lock helper's NEW `sh` process and used
+# to bypass this hop there. Compare the current PID, which survives exec only.
 # With no busybox at all we stay put and only flip standalone if this shell
 # knows the option.
-if [ -z "$AS_ASH" ]; then
+if [ "${AS_ASH:-}" != "$$" ]; then
     for bb in /data/adb/magisk/busybox /data/adb/ksu/bin/busybox /data/adb/ap/bin/busybox \
               /data/adb/modules/busybox-ndk/system/*/busybox; do
         if [ -x "$bb" ]; then
-            export AS_ASH=1
+            export AS_ASH="$$"
             exec "$bb" sh "$MODPATH/action.sh" "$@"
         fi
     done
@@ -52,7 +53,7 @@ if [ "$1" = "logs" ] && [ -x "$MODPATH/collect_logs.sh" ]; then
     exit 0
 fi
 
-CONFIG_DIR=/data/adb/tricky_store
+CONFIG_DIR=${AS_CFG_ROOT:-/data/adb/tricky_store}
 # Our own settings/state/logs (one directory, see as_store.sh).
 [ -f "$MODPATH/as_store.sh" ] && . "$MODPATH/as_store.sh" && as_init
 # Share one lock across manager taps, WebUI, reset and the boot auto-action.
@@ -71,9 +72,13 @@ VER=$(grep -m1 '^version=' "$MODPATH/module.prop" 2>/dev/null | cut -d= -f2-)
 # A non-release build carries its tag in module.prop - v1.0.4 (74-abc1234-nightly)
 # - which the manager, the WebUI and a collected log all show. This header is
 # three lines on a phone screen, so it keeps the plain version.
-VER=${VER%% (*}
+VER=${VER%%" ("*}
 
-row() { echo "    $1   $2"; }
+row() { printf '    %s   %s\n' "$1" "$2"; }
+ACTION_ERRORS=0
+ACTION_WARNINGS=0
+action_error() { ACTION_ERRORS=$((ACTION_ERRORS + 1)); row "❗" "$1"; }
+action_warning() { ACTION_WARNINGS=$((ACTION_WARNINGS + 1)); row "⚠️" "$1"; }
 
 # --- ABI + fetchers ---
 case "$(uname -m)" in
@@ -143,6 +148,14 @@ dl_to() {
 }
 
 # --- Header ---
+# Refuse to run a partly parsed/broken script instead of returning success
+# after repeated "function: inaccessible or not found" diagnostics.
+for _required in row action_error action_warning bounded as_on st_get st_set engine_enforce_spoof; do
+    command -v "$_required" >/dev/null 2>&1 || {
+        printf 'Action: required function %s is unavailable\n' "$_required" >&2
+        exit 1
+    }
+done
 echo ""
 echo "  $LINE"
 row "🔒" "AlwaysStrong  ${VER}"
@@ -164,8 +177,9 @@ sleep 3
 # --- Step 1: Target list ---
 # `pm list packages` can stall while PackageManager is busy — cap it (an old
 # phone with hundreds of apps legitimately takes ~30 s here).
-[ -x "$MODPATH/build_target_txt.sh" ] && \
-    bounded 180 sh "$MODPATH/build_target_txt.sh" "$CONFIG_DIR/target.txt" >/dev/null 2>&1
+if ! bounded 180 sh "$MODPATH/build_target_txt.sh" "$CONFIG_DIR/target.txt" >/dev/null 2>&1; then
+    action_error "target list refresh failed; existing list kept"
+fi
 TGT_N=$(grep -cvE '^[[:space:]]*$' "$CONFIG_DIR/target.txt" 2>/dev/null)
 row "🎯" "${TGT_N:-0} apps > target"
 sleep 1
@@ -178,7 +192,7 @@ if as_on custom_keybox; then
         row "🔑" "custom keybox — skip fetch"
         row "💡" "disable in webui for auto"
     else
-        row "❗" "custom keybox not set"
+        action_error "custom keybox not set or invalid"
     fi
 elif [ -x "$MODPATH/keybox_fetch.sh" ]; then
     # "keybox ok" used to mean "a keybox-looking file exists" — but a fresh
@@ -202,23 +216,28 @@ elif [ -x "$MODPATH/keybox_fetch.sh" ]; then
         return 1
     }
     if ! net_ok; then
-        row "❗" "no internet — keybox not fetched"
+        if sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1; then
+            action_warning "no internet — current keybox kept"
+        else
+            action_error "no internet — no valid keybox available"
+        fi
         row "🌐" "connect and tap again (or hourly)"
     else
         bounded 400 sh "$MODPATH/keybox_fetch.sh" >/dev/null 2>&1
         case "$?" in
             0) row "🔑" "keybox updated" ;;
             2) row "🔑" "keybox ok" ;;
-            *) row "❗" "keybox fetch failed"
-               if sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1; then
+            *) if sh "$MODPATH/keybox_manage.sh" check >/dev/null 2>&1; then
+                   action_warning "keybox fetch failed"
                    row "🌐" "server unreachable — kept current, retried hourly"
                else
+                   action_error "keybox fetch failed"
                    row "🌐" "server unreachable — no keybox yet"
                fi ;;
         esac
     fi
 else
-    row "❗" "keybox fetch not available"
+    action_error "keybox fetch not available"
 fi
 sleep 1
 
@@ -313,7 +332,7 @@ fi
 case "$FP_SRC" in
     pif|native) row "🌐" "fingerprint ok" ;;
     local)      row "🌐" "fingerprint ok (local)" ;;
-    *)          row "❗" "fingerprint failed" ;;
+    *)          action_error "fingerprint failed" ;;
 esac
 fi
 sleep 1
@@ -321,19 +340,21 @@ sleep 1
 # --- Step 4: Spoof settings + security patch ---
 # Re-enforced even when the fetch above already did it: a user or an upstream
 # script can edit the prop between taps.
-engine_enforce_spoof
+engine_enforce_spoof || action_error "engine settings could not be applied"
 
 # Reapply the same session-only policy on a manual refresh. No partition writes.
 if [ -f "$MODPATH/boot_props.sh" ]; then
     bounded 8 sh "$MODPATH/boot_props.sh" apply > "$AS_LOGS/boot-props.log" 2>&1 || \
-        row "!" "boot property policy incomplete; see logs"
+        action_error "boot property policy incomplete; see logs"
 fi
 if [ -f "$MODPATH/denylist.sh" ]; then
     bounded 15 sh "$MODPATH/denylist.sh" > "$AS_LOGS/denylist.log" 2>&1 || :
 fi
 
 PATCH=""
-[ -f "$MODPATH/sync_patch.sh" ] && PATCH=$(sh "$MODPATH/sync_patch.sh" boot 2>/dev/null)
+if [ -f "$MODPATH/sync_patch.sh" ]; then
+    PATCH=$(sh "$MODPATH/sync_patch.sh" boot 2>/dev/null) || action_error "security patch sync failed"
+fi
 
 pick_pif() {
     # Module dir first: it holds the engine's ACTIVE pif for every source (auto,
@@ -365,19 +386,30 @@ fi
 # --- Restart PI + status ---
 killall -9 com.google.android.gms.unstable 2>/dev/null
 killall -9 com.android.vending 2>/dev/null
-bounded 45 am force-stop com.android.vending >/dev/null 2>&1
+bounded 45 am force-stop com.android.vending >/dev/null 2>&1 || \
+    action_warning "Play Store could not be stopped; restart it manually"
 
 # Status indicator — network again, and it runs right before "done": this is
 # the call that froze the Action for good whenever asfetch hung.
 if [ -x "$MODPATH/status_fetch.sh" ]; then
-    MODPATH="$MODPATH" bounded 150 sh "$MODPATH/status_fetch.sh" manual >/dev/null 2>&1
+    MODPATH="$MODPATH" bounded 150 sh "$MODPATH/status_fetch.sh" manual >/dev/null 2>&1 || \
+        action_warning "status refresh failed; see logs"
 fi
 
 # WebUI hosts are installed explicitly by the user.
 
 # --- Done ---
 echo "  $LINE"
-row "✅" "done"
+ACTION_RC=0
+if [ "$ACTION_ERRORS" -gt 0 ]; then
+    row "❗" "finished with $ACTION_ERRORS error(s); review the log"
+    ACTION_RC=1
+elif [ "$ACTION_WARNINGS" -gt 0 ]; then
+    row "⚠️" "finished with $ACTION_WARNINGS warning(s); review the log"
+    ACTION_RC=2
+else
+    row "✅" "done"
+fi
 echo "  $LINE"
 echo ""
 row "📣" "@alwaysstrongfork"
@@ -390,3 +422,4 @@ if { [ "$KSU" = "true" ] || [ "$APATCH" = "true" ]; } \
    && [ "$KSU_NEXT" != "true" ] && [ "$WKSU" != "true" ] && [ "$MMRL" != "true" ]; then
     sleep 2
 fi
+exit "$ACTION_RC"

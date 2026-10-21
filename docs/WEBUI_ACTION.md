@@ -35,6 +35,11 @@ keep the active output. The diagnostic collector includes both files.
 Bridge requests have a 10-second UI timeout; a missing reply does not claim the
 background work stopped. Code 75 indicates another Action owns the global
 lock; code 124 indicates the eight-minute deadline expired.
+Code 1 indicates failed Action steps; code 2 indicates completion with warnings.
+The header quotes the literal version suffix pattern for Android mksh. The
+BusyBox hop marker is process-specific so a new shell launched by lock-run
+cannot inherit a stale "already running ash" flag. CI installs mksh and runs the
+actual Action preamble and body with isolated Android-command fixtures.
 
 Action completion is a script result, not a Play Integrity verdict. The UI
 directs the user to run an independent checker after completion.

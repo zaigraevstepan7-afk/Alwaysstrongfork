@@ -64,6 +64,8 @@ Install **one variant at a time**. Release ZIPs are ready to install; do not ext
 
 `AlwaysStrong-Isolation-<version>.zip` is a **separate experimental module**, not a fourth PIF variant. It adds a native Zygisk component without replacing the main module's PIF library. The initial selected package is Duck Detector; its WebUI accepts exact package names.
 
+**Repair 1.4.3 fixes Action on Android mksh**, including the `row: inaccessible or not found` regression. The WebUI now includes an Action button with persistent live output, an eight-minute deadline, and distinct error/warning states. See [release notes](releases/v1.0.5-repair.1.4.3.md) and [Action architecture](docs/WEBUI_ACTION.md).
+
 **Repair 1.4.2 removes font memory remapping.** The previous implementation could crash an app if a mapped file changed or became unreadable. Old `private-fonts=1` settings cannot re-enable it. Existing font paths may therefore remain visible.
 
 The companion stays inactive during boot and only permits the documented per-process unmount request after Android completes boot and remains up for **120 seconds**. A readiness token must match the current boot ID; a missing/stale token, disable/remove marker, bad config or IPC timeout results in no action. The request/response share a 150 ms monotonic deadline after the provider returns a connection. Config opens reject FIFOs, symlinks and oversized/nonregular files. The provider's own `connectCompanion()` call is outside this deadline.

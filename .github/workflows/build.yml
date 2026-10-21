@@ -20,6 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Android shell compatibility test tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y mksh busybox-static
+
       - name: Check shell and JavaScript syntax
         run: |
           set -euo pipefail
