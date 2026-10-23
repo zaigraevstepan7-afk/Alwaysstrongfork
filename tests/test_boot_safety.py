@@ -204,6 +204,29 @@ class BootSafetyTests(unittest.TestCase):
         (self.cfg/'keybox.xml').write_bytes(self.xml[:954])
         self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
         self.assertFalse(marker.exists())
+    def test_missing_keybox_records_supervisor_phase(self):
+        marker=self.d/'not-launched';self.env['DAEMON_MARKER']=str(marker)
+        self.daemon('touch "$DAEMON_MARKER"\\nexit 1\\n')
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
+        status=(self.cfg/'alwaysstrong/logs/attest-startup.status').read_text()
+        self.assertIn('phase=blocked',status)
+        self.assertIn('keybox check failed',status)
+        self.assertFalse(marker.exists())
+
+    def test_tee_preflight_refuses_incomplete_payload(self):
+        (self.mod/'attest.sh').write_text((repair_fixture.ROOT/'attest/tee.sh').read_text())
+        logs=self.cfg/'alwaysstrong/logs';logs.mkdir(parents=True,exist_ok=True)
+        env=dict(self.env,MODDIR=str(self.mod),AS_LOGS=str(logs))
+        r=subprocess.run(['sh','-c','. "$MODDIR/attest.sh"; attest_start'],env=env,
+                         capture_output=True,text=True,timeout=3)
+        self.assertNotEqual(r.returncode,0,r.stdout+r.stderr)
+        self.assertIn('daemon',(logs/'attest-supervisor.log').read_text())
+
+    def test_collector_includes_attestation_failure_details(self):
+        collector=(self.mod/'collect_logs.sh').read_text()
+        for name in ['attest-startup.status','attest-supervisor.log','attest-safety.log','boot-prepare.log']:
+            self.assertIn(name,collector)
+
     def test_three_rapid_daemon_exits_pause_rest_of_boot(self):
         self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
         attempts=self.d/'attempts';self.env['DAEMON_ATTEMPTS']=str(attempts)
@@ -213,6 +236,7 @@ class BootSafetyTests(unittest.TestCase):
         self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
         self.assertEqual(len(attempts.read_text().splitlines()),3)
         self.assertIn('rapid',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
+        self.assertIn('phase=paused',(self.cfg/'alwaysstrong/logs/attest-startup.status').read_text())
     def test_duplicate_supervisor_cannot_start_second_daemon(self):
         self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
         ready=self.d/'daemon-ready';self.env['DAEMON_READY']=str(ready)
