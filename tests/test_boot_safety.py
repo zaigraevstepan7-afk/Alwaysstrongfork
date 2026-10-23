@@ -240,8 +240,10 @@ class BootSafetyTests(unittest.TestCase):
     def test_android17_total_launch_budget_blocks_reinjection(self):
         self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
         (self.tools/'getprop').write_text(
-            '#!/bin/sh\\ncase "$1" in ro.build.version.sdk) echo 37 ;; '
-            'sys.boot_completed) echo 1 ;; esac\\n'.replace('\\n','\n'))
+            '#!/bin/sh\ncase "$1" in\n'
+            '  ro.build.version.sdk) echo 37 ;;\n'
+            '  sys.boot_completed) echo 1 ;;\n'
+            'esac\n')
         (self.tools/'getprop').chmod(0o755)
         budget=self.cfg/'alwaysstrong/attest-attempts'
         budget.write_text('boot_id=boot-a\nattempts=0\ntotal_launches=3\n')
