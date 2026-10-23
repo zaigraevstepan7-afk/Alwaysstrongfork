@@ -2,6 +2,7 @@
 MODDIR=$(cd "${0%/*}" && pwd)
 MODPATH="$MODDIR"
 cd "$MODDIR" || exit 0
+sh "$MODDIR/boot_safety.sh" enforce || exit 0
 . "$MODDIR/repair_runtime.sh"
 # The descriptor also stays open in background watchdog/hourly shells. A
 # repeated service entry therefore cannot create another set of permanent jobs.

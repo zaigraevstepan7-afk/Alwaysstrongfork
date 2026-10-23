@@ -97,9 +97,11 @@ done
 [ -d /data/adb/modules_update/tricky_store ] && echo "UPDATE PENDING in modules_update — reboot required"
 echo "--- module dir (names only)"
 ls -A "$MODDIR" 2>/dev/null | tr '\n' ' '; echo
-for d in zygisk lib teesim bin; do
+for d in zygisk .boot-safe-zygisk lib teesim bin; do
     [ -d "$MODDIR/$d" ] && echo "$d/: $(cd "$MODDIR/$d" 2>/dev/null && find . -type f 2>/dev/null | sed 's|^\./||' | tr '\n' ' ')"
 done
+echo "--- boot safety"
+sh "$MODDIR/boot_safety.sh" status 2>/dev/null
 # build.sh binary-patches PIF's zygisk lib to read its config from OUR module
 # dir; an unpatched lib reads /data/adb/modules/playintegrityfix and spoofs nothing.
 for so in "$MODDIR"/zygisk/*.so; do
@@ -332,6 +334,7 @@ sec "Module logs on disk"
 # on-disk copies are where the boot / hourly / watchdog messages live.
 for t in AlwaysStrong AlwaysStrong-boot AlwaysStrong-hourly; do echo "persist.log.tag.$t=$(getprop "persist.log.tag.$t")"; done
 echo "--- boot-props.log (session property policy)"; tail_or boot-props.log "$AS_LOGS/boot-props.log" 60
+echo "--- boot-safety.log"; tail_or boot-safety.log "$AS_LOGS/boot-safety.log" 20
 echo "--- denylist.log (optional target sync)"; tail_or denylist.log "$AS_LOGS/denylist.log" 30
 echo "--- autopif.log (fingerprint fetch)"; tail_or autopif.log "$AS_LOGS/autopif.log" 40
 echo "--- action-boot.log (first-boot Action)"; tail_or action-boot.log "$AS_LOGS/action-boot.log" 60

@@ -7,6 +7,7 @@ import zipfile
 def verify(path):
     required = {
         'module.prop', 'customize.sh', 'service.sh', 'post-fs-data.sh', 'webui_action.sh',
+        'boot_safety.sh',
         'META-INF/com/google/android/update-binary',
         'META-INF/com/google/android/updater-script',
         'webroot/index.html', 'webroot/main.js', 'webroot/app.css',

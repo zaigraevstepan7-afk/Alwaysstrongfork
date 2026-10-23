@@ -1,5 +1,8 @@
 #!/system/bin/sh
 MODPATH="${0%/*}"
+# Reassert a latched guard and quarantine PIF even if the native runtime is
+# missing/broken or the manager's enable toggle removed our disable flag.
+sh "$MODPATH/boot_safety.sh" enforce || exit 0
 # Six seconds is below the 10s KSU/APatch blocking-stage budget. The native
 # deadline stops the entire worker process group, including stuck helpers.
 if [ "${1:-}" != __early ]; then

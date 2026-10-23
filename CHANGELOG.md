@@ -1,5 +1,15 @@
 # AlwaysStrong changelog
 
+## AlwaysStrongFork v1.0.6
+
+- Quarantine bundled Zygisk libraries when boot-safe trips; a manager enable toggle cannot expose them again.
+- Reassert the safety block before post-fs-data deadlines and service locks, including when the native helper is unavailable.
+- Preserve the latch and quarantine newly staged libraries during module updates.
+- Add explicit, locked recovery after Android boot completion. Restore libraries and reset attempts while keeping the module disabled until a manager enable and reboot.
+- Include quarantine state and the boot-safety log in diagnostics; document recovery and current-boot loader limits.
+- Add regression coverage for all ABI payloads, re-enabling, staged updates, unavailable helpers, repeat quarantine, recovery refusal, and Lite recovery.
+- Publish stable v1.0.6 with synchronized versionCode 116 and update metadata. Upstream PIF/TEE payload pins are unchanged.
+
 ## AlwaysStrongFork v1.0.5-repair.1.4.3
 
 - Fix mksh version-pattern parsing that hid row(), and repeat the BusyBox hop for each new Action process.

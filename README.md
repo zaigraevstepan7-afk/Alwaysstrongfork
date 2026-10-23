@@ -18,7 +18,7 @@
 
 </div>
 
-AlwaysStrongFork is an AlwaysStrong fork based on Repair 1.3. The default build combines **TEESimulator-RS** and **PlayIntegrityFork**, updates the fingerprint, manages keyboxes, and recovers damaged local files. Settings are available through WebUI.
+AlwaysStrongFork is a maintained fork of AlwaysStrong. The default build combines **TEESimulator-RS** and **PlayIntegrityFork**, updates the fingerprint, manages keyboxes, and recovers damaged local files. Settings are available through WebUI.
 
 The module is intended for Play Integrity on rooted devices. **BASIC / DEVICE / STRONG** results come from an actual check on the device: having a keybox or successfully running Action does not by itself mean 3/3.
 
@@ -64,7 +64,7 @@ Install **one variant at a time**. Release ZIPs are ready to install; do not ext
 
 `AlwaysStrong-Isolation-<version>.zip` is a **separate experimental module**, not a fourth PIF variant. It adds a native Zygisk component without replacing the main module's PIF library. The initial selected package is Duck Detector; its WebUI accepts exact package names.
 
-**Repair 1.4.3 fixes Action on Android mksh**, including the `row: inaccessible or not found` regression. The WebUI now includes an Action button with persistent live output, an eight-minute deadline, and distinct error/warning states. See [release notes](releases/v1.0.5-repair.1.4.3.md) and [Action architecture](docs/WEBUI_ACTION.md).
+**Stable v1.0.6 fixes boot-safe re-enabling:** after the guard trips, the bundled Zygisk libraries are quarantined until explicit recovery. Updates preserve that block. The WebUI Action and Android mksh fixes are included. See [release notes](releases/v1.0.6.md), [boot-safe recovery](#boot-safe-recovery), and [Action architecture](docs/WEBUI_ACTION.md).
 
 **Repair 1.4.2 removes font memory remapping.** The previous implementation could crash an app if a mapped file changed or became unreadable. Old `private-fonts=1` settings cannot re-enable it. Existing font paths may therefore remain visible.
 
@@ -156,6 +156,34 @@ sh /data/adb/modules/tricky_store/boot_props.sh check
 
 These are property views, not hardware bootloader or AVB validation. The policy does not change the model, encryption state, partitions, or persistent property storage. Disable the module and reboot to restore ROM defaults. The bundled TEESimulator-RS libraries and DEX remain upstream v6.0.1-307; this release changes integration and startup policy, not the native TEE implementation.
 
+### Boot-safe recovery
+
+After three boot attempts without the stable checkpoint, the guard creates
+`alwaysstrong/boot-safe`, disables this module, and moves its bundled `zygisk/`
+into `.boot-safe-zygisk/`. Removing `disable` with the manager does not restore
+those libraries: the next startup reasserts the block. An update also quarantines
+the staged payload when a previous boot-safe latch exists. The early check does
+not depend on the native deadline/lock helper.
+
+After investigating and fixing the cause, boot Android with the module disabled
+and run this command in a root shell:
+
+```sh
+sh /data/adb/modules/tricky_store/boot_safety.sh recover
+```
+
+Recovery requires completed Android boot and the native lock helper. It restores
+the bundled libraries, clears the safety latch and attempt counter, and **keeps
+the module disabled**. Enable it in the root manager and reboot when ready to
+retry. Settings reset, Action, and installing an update do not clear boot-safe.
+Lite has no bundled Zygisk payload; standalone PIF modules and the optional
+Isolation companion keep their own lifecycle and are not changed by this guard.
+
+Quarantining files prevents future loads from those paths; it cannot unload a
+library a provider already opened or mapped in the current boot. Reboot after
+changing the safety state. Check `boot_safety.sh status` and
+`alwaysstrong/logs/boot-safety.log` when collecting diagnostics.
+
 ### Data locations
 
 | Path | Contents |
@@ -175,7 +203,7 @@ These are property views, not hardware bootloader or AVB validation. The policy 
 | The installer reports a conflict | Resolve the named conflict manually and install again. The module does not automatically remove other modules. |
 | Action did not refresh data | Read its output and logs. Check the network and custom keybox / fingerprint modes. |
 | WebUI does not open | Check your WebUI host and its root access. After updating, fully close the old window and reopen it. |
-| The module disabled itself after several boots | Check `alwaysstrong/boot-state`, `boot-safe`, and the logs. The guard disables this module after three boot attempts without a stable checkpoint. |
+| The module disabled itself after several boots | Check `alwaysstrong/boot-state`, `boot-safe`, and the logs. The guard disables this module and quarantines its bundled Zygisk libraries after three boot attempts without a stable checkpoint. See [recovery](#boot-safe-recovery). |
 | The engine did not start and `boot-props.log` reports a mismatch | A property write failed or timed out; inspect the named property and root-manager compatibility. A skipped launch does not prove a successful attestation. |
 | The engine stopped restarting until reboot | The supervisor pauses after three unconfirmed launches or repeated `keystore2` restarts; the launch budget survives supervisor crashes within the same boot. Investigate the logs. |
 

@@ -184,6 +184,19 @@ fi
 chmod 755 "$MODPATH/daemon" "$MODPATH/supervisor" "$MODPATH/inject" \
           "$MODPATH"/*.sh 2>/dev/null
 
+# --- Preserve boot-safe across updates -----------------------------------
+# This is the staged module directory. Quarantine the newly extracted payload
+# before the manager activates it, and do not clear a previous safety latch.
+if [ -e "$CONFIG_DIR/alwaysstrong/boot-safe" ]; then
+  AS_CFG_ROOT="$CONFIG_DIR" sh "$MODPATH/boot_safety.sh" enforce || :
+  [ -f "$MODPATH/disable" ] || abort "cannot preserve boot-safe disable flag"
+  for boot_lib in "$MODPATH"/zygisk/*.so; do
+    [ ! -e "$boot_lib" ] || abort "cannot quarantine Zygisk payload for boot-safe"
+  done
+  ui_print "boot-safe preserved: module disabled, Zygisk quarantined"
+  ui_print "after fixing the cause, use boot_safety.sh recover before enabling"
+fi
+
 # --- WebUI (KSU / APatch / MMRL) — local HTML, JavaScript and CSS
 mkdir -p "$MODPATH/webroot"
 if unzip -l "$ZIPFILE" 2>/dev/null | grep -q "webroot/index.html"; then

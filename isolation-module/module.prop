@@ -1,7 +1,7 @@
 id=alwaysstrong_isolation
 name=AlwaysStrongFork Mount Isolation [Experimental]
-version=v1.0.5-repair.1.4.3
-versionCode=115
+version=v1.0.6
+versionCode=116
 author=@SUKISU_ULTR4
 summary=Optional per-app mount isolation through Zygisk.
 description=Experimental: selected-process mount isolation after a stable boot; no font memory rewriting. Does not hide installed packages or repair Soter hardware.

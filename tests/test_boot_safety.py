@@ -49,12 +49,113 @@ class BootSafetyTests(unittest.TestCase):
         self.assertLess(time.monotonic()-start,8)
     def test_three_unfinished_boots_disable_only_this_module(self):
         other=self.d/'other-module';other.mkdir();(other/'keep').write_text('untouched')
+        libs=self.mod/'zygisk';libs.mkdir()
+        for abi in ['arm64-v8a','armeabi-v7a','x86','x86_64']:(libs/(abi+'.so')).write_bytes(abi.encode())
         self.sh('boot_safety.sh','begin',ok=0);self.sh('boot_safety.sh','begin',ok=0)
         self.assertIn('attempts=1',(self.cfg/'alwaysstrong/boot-state').read_text())
+        self.assertTrue((libs/'arm64-v8a.so').exists())
         self.boot.write_text('boot-b');self.sh('boot_safety.sh','begin',ok=0)
         self.boot.write_text('boot-c');self.sh('boot_safety.sh','begin',ok=1)
         self.assertTrue((self.mod/'disable').exists());self.assertTrue((self.cfg/'alwaysstrong/boot-safe').exists())
         self.assertEqual((other/'keep').read_text(),'untouched');self.assertFalse((other/'disable').exists())
+        self.assertFalse(libs.exists())
+        for abi in ['arm64-v8a','armeabi-v7a','x86','x86_64']:
+            self.assertEqual((self.mod/'.boot-safe-zygisk'/(abi+'.so')).read_bytes(),abi.encode())
+        # A manager enable removes disable, but must not restore a loadable ABI.
+        for command in ['begin','allow']:
+            (self.mod/'disable').unlink();self.boot.write_text('boot-reenabled')
+            self.sh('boot_safety.sh',command,ok=1)
+            self.assertTrue((self.mod/'disable').exists());self.assertFalse(libs.exists())
+
+    def latch_guard(self):
+        (self.cfg/'alwaysstrong').mkdir(exist_ok=True)
+        (self.cfg/'alwaysstrong/boot-safe').touch()
+        libs=self.mod/'zygisk';libs.mkdir()
+        (libs/'arm64-v8a.so').write_bytes(b'PIF fixture')
+
+    def test_legacy_latch_quarantines_before_missing_native_runtime(self):
+        for entry in ['post-fs-data.sh','service.sh']:
+            with self.subTest(entry=entry):
+                self.latch_guard()
+                self.env['AS_NATIVE_TOOL']=str(self.d/'missing')
+                self.sh(entry,ok=0,timeout=3)
+                self.assertTrue((self.mod/'disable').exists())
+                self.assertFalse((self.mod/'zygisk').exists())
+                self.assertEqual((self.mod/'.boot-safe-zygisk/arm64-v8a.so').read_bytes(),b'PIF fixture')
+                (self.mod/'.boot-safe-zygisk/arm64-v8a.so').unlink()
+                (self.mod/'.boot-safe-zygisk').rmdir()
+                (self.mod/'disable').unlink()
+
+    def test_recreated_payload_is_quarantined_without_nested_directory(self):
+        self.latch_guard();self.sh('boot_safety.sh','enforce',ok=1)
+        (self.mod/'disable').unlink();(self.mod/'zygisk').mkdir()
+        (self.mod/'zygisk/arm64-v8a.so').write_bytes(b'new staged PIF')
+        (self.mod/'zygisk/armeabi-v7a.so').write_bytes(b'new 32-bit PIF')
+        self.sh('boot_safety.sh','enforce',ok=1)
+        self.assertFalse((self.mod/'zygisk').exists())
+        self.assertFalse((self.mod/'.boot-safe-zygisk/zygisk').exists())
+        self.assertEqual((self.mod/'.boot-safe-zygisk/arm64-v8a.so').read_bytes(),b'new staged PIF')
+        self.assertEqual((self.mod/'.boot-safe-zygisk/armeabi-v7a.so').read_bytes(),b'new 32-bit PIF')
+
+    def test_recovery_restores_payload_only_explicitly_and_keeps_disabled(self):
+        self.latch_guard();self.sh('boot_safety.sh','enforce',ok=1)
+        (self.cfg/'alwaysstrong/boot-state').write_text('boot_id=old\nattempts=3\n')
+        self.sh('boot_safety.sh','recover',ok=0)
+        self.assertTrue((self.mod/'disable').exists())
+        self.assertFalse((self.cfg/'alwaysstrong/boot-safe').exists())
+        self.assertFalse((self.cfg/'alwaysstrong/boot-state').exists())
+        self.assertEqual((self.mod/'zygisk/arm64-v8a.so').read_bytes(),b'PIF fixture')
+        self.sh('boot_safety.sh','begin',ok=1)
+        (self.mod/'disable').unlink();self.boot.write_text('boot-recovered')
+        self.sh('boot_safety.sh','begin',ok=0)
+        self.assertIn('attempts=1',(self.cfg/'alwaysstrong/boot-state').read_text())
+
+    def test_recovery_refuses_incomplete_boot_removal_or_missing_lock_helper(self):
+        self.latch_guard();self.sh('boot_safety.sh','enforce',ok=1)
+        self.completed.write_text('0');self.sh('boot_safety.sh','recover',ok=1)
+        self.completed.write_text('1');self.mode.write_text('recovery')
+        self.sh('boot_safety.sh','recover',ok=1);self.mode.write_text('normal')
+        (self.mod/'remove').touch()
+        self.sh('boot_safety.sh','recover',ok=1);(self.mod/'remove').unlink()
+        self.env['AS_NATIVE_TOOL']=str(self.d/'missing')
+        self.sh('boot_safety.sh','recover',ok=1)
+        self.assertTrue((self.cfg/'alwaysstrong/boot-safe').exists())
+        self.assertTrue((self.mod/'disable').exists());self.assertFalse((self.mod/'zygisk').exists())
+
+    def test_lite_recovery_does_not_create_a_zygisk_payload(self):
+        (self.cfg/'alwaysstrong').mkdir();(self.cfg/'alwaysstrong/boot-safe').touch()
+        self.sh('boot_safety.sh','enforce',ok=1)
+        self.sh('boot_safety.sh','recover',ok=0)
+        self.assertTrue((self.mod/'disable').exists());self.assertFalse((self.mod/'zygisk').exists())
+
+    def test_installer_preserves_latch_for_staged_payload(self):
+        self.latch_guard()
+        text=(self.mod/'customize.sh').read_text()
+        block=text[text.index('# --- Preserve boot-safe'):text.index('# --- WebUI')]
+        script='set -e\nui_print() { :; }\nabort() { echo "$*" >&2; exit 1; }\n'+block
+        self.env['CONFIG_DIR']=str(self.cfg)
+        r=subprocess.run(['sh','-c',script],env=self.env,capture_output=True,text=True,timeout=3)
+        self.assertEqual(r.returncode,0,r.stderr)
+        self.assertTrue((self.mod/'disable').exists());self.assertFalse((self.mod/'zygisk').exists())
+        self.assertTrue((self.cfg/'alwaysstrong/boot-safe').exists())
+
+    def test_installer_refuses_update_when_payload_cannot_be_quarantined(self):
+        self.latch_guard()
+        (self.tools/'mv').write_text('#!/bin/sh\nexit 1\n');(self.tools/'mv').chmod(0o755)
+        text=(self.mod/'customize.sh').read_text()
+        block=text[text.index('# --- Preserve boot-safe'):text.index('# --- WebUI')]
+        script='set -e\nui_print() { :; }\nabort() { echo "$*" >&2; exit 1; }\n'+block
+        self.env['CONFIG_DIR']=str(self.cfg)
+        r=subprocess.run(['sh','-c',script],env=self.env,capture_output=True,text=True,timeout=3)
+        self.assertEqual(r.returncode,1)
+        self.assertIn('cannot quarantine Zygisk payload',r.stderr)
+        self.assertTrue((self.mod/'disable').exists())
+        self.assertTrue((self.cfg/'alwaysstrong/boot-safe').exists())
+
+    def test_wait_rejects_latch_even_when_android_is_already_booted(self):
+        self.latch_guard()
+        self.sh('boot_safety.sh','wait','1',ok=1,timeout=3)
+        self.assertTrue((self.mod/'disable').exists());self.assertFalse((self.mod/'zygisk').exists())
     def test_success_checkpoint_resets_attempts_and_wait_is_bounded(self):
         self.sh('boot_safety.sh','begin',ok=0);self.sh('boot_safety.sh','complete',ok=0)
         self.assertIn('attempts=0',(self.cfg/'alwaysstrong/boot-state').read_text())
@@ -75,7 +176,7 @@ class BootSafetyTests(unittest.TestCase):
         self.assertFalse(marker.exists());self.assertFalse((self.cfg/'alwaysstrong/boot-state').exists())
     def test_duplicate_service_returns_before_starting_any_jobs(self):
         marker=self.d/'duplicate-started';self.env['DUPLICATE_MARKER']=str(marker)
-        (self.mod/'boot_safety.sh').write_text('#!/bin/sh\ntouch "$DUPLICATE_MARKER"\nexit 1\n')
+        (self.mod/'boot_safety.sh').write_text('#!/bin/sh\n[ "${1:-}" != enforce ] || exit 0\ntouch "$DUPLICATE_MARKER"\nexit 1\n')
         with (self.mod/'.service.flock').open('w') as held:
             fcntl.flock(held,fcntl.LOCK_EX|fcntl.LOCK_NB)
             self.sh('service.sh',ok=0,timeout=3)
