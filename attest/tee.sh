@@ -38,7 +38,15 @@ attest_early() { return 1; }
 
 # Fork-based supervisor + daemon (TEESimulator-RS standard pattern).
 attest_start() {
-    sh "$MODDIR/attest_supervise.sh" tee > "$AS_LOGS/attest-supervisor.log" 2>&1 &
+    # Installation can leave a partial payload after an interrupted update.
+    # Fail visibly rather than claiming success and silently backgrounding it.
+    for required in daemon tee_classes.dex libTEESimulator.so inject supervisor; do
+        if [ ! -s "$MODDIR/$required" ]; then
+            printf 'attestation preflight: missing or empty %s\n' "$required" >> "$AS_LOGS/attest-supervisor.log"
+            return 1
+        fi
+    done
+    sh "$MODDIR/attest_supervise.sh" tee >> "$AS_LOGS/attest-supervisor.log" 2>&1 &
 }
 
 # True while the TEE daemon is alive.
