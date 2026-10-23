@@ -72,7 +72,10 @@ start_attestation() {
         log -t "AlwaysStrong" "boot property policy failed/timed out; new attestation startup skipped"
         return 1
     fi
-    attest_start
+    if ! attest_start; then
+        log -t "AlwaysStrong" "attestation start refused; inspect attest-supervisor.log and attest-startup.status"
+        return 1
+    fi
 }
 
 # Engines that hijack keystore2 (TrickyStoreOSS) must start at the service stage,
@@ -250,8 +253,12 @@ fi
 
 # --- TEESimulator + aswatcher watchdog ---
 {
+    # Recover one failed initial launch promptly; later checks stay at 120 s.
+    # All retries still honour the supervisor's per-boot circuit breaker.
+    AS_ATTEST_WATCH_DELAY=30
     while true; do
-        sleep 120
+        sleep "$AS_ATTEST_WATCH_DELAY"
+        AS_ATTEST_WATCH_DELAY=120
         sh "$MODDIR/boot_safety.sh" allow || exit 0
         if [ -s "$AS_DIR/verdict-inbox.json" ]; then
             sh "$MODDIR/verdict_report.sh" >"$AS_LOGS/verdict-import.log" 2>&1 || :
