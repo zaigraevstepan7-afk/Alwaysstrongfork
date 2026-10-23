@@ -237,6 +237,21 @@ class BootSafetyTests(unittest.TestCase):
         self.assertEqual(len(attempts.read_text().splitlines()),3)
         self.assertIn('rapid',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
         self.assertIn('phase=paused',(self.cfg/'alwaysstrong/logs/attest-startup.status').read_text())
+    def test_android17_total_launch_budget_blocks_reinjection(self):
+        self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
+        (self.tools/'getprop').write_text(
+            '#!/bin/sh\\ncase "$1" in ro.build.version.sdk) echo 37 ;; '
+            'sys.boot_completed) echo 1 ;; esac\\n'.replace('\\n','\n'))
+        (self.tools/'getprop').chmod(0o755)
+        budget=self.cfg/'alwaysstrong/attest-attempts'
+        budget.write_text('boot_id=boot-a\nattempts=0\ntotal_launches=3\n')
+        marker=self.d/'tee-started';self.env['DAEMON_MARKER']=str(marker)
+        self.daemon('touch "$DAEMON_MARKER"\nexit 0\n')
+        self.sh('attest_supervise.sh','tee',ok=0,timeout=3)
+        self.assertFalse(marker.exists())
+        self.assertIn('total TEE launches',(self.cfg/'alwaysstrong/logs/attest-safety.log').read_text())
+        self.assertIn('phase=paused',(self.cfg/'alwaysstrong/logs/attest-startup.status').read_text())
+
     def test_duplicate_supervisor_cannot_start_second_daemon(self):
         self.fast_sleep();self.sh('keybox_manage.sh','install',self.good,'custom',ok=0)
         ready=self.d/'daemon-ready';self.env['DAEMON_READY']=str(ready)
