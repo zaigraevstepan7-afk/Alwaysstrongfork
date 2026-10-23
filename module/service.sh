@@ -253,12 +253,11 @@ fi
 
 # --- TEESimulator + aswatcher watchdog ---
 {
-    # Recover one failed initial launch promptly; later checks stay at 120 s.
-    # All retries still honour the supervisor's per-boot circuit breaker.
-    AS_ATTEST_WATCH_DELAY=30
+    # Keep the established 120-second watchdog cadence. On Android 17,
+    # speeding up TEE restarts adds risk before compatibility is verified.
+    # The per-boot circuit breaker still caps failed launches.
     while true; do
-        sleep "$AS_ATTEST_WATCH_DELAY"
-        AS_ATTEST_WATCH_DELAY=120
+        sleep 120
         sh "$MODDIR/boot_safety.sh" allow || exit 0
         if [ -s "$AS_DIR/verdict-inbox.json" ]; then
             sh "$MODDIR/verdict_report.sh" >"$AS_LOGS/verdict-import.log" 2>&1 || :
