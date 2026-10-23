@@ -335,6 +335,10 @@ sec "Module logs on disk"
 for t in AlwaysStrong AlwaysStrong-boot AlwaysStrong-hourly; do echo "persist.log.tag.$t=$(getprop "persist.log.tag.$t")"; done
 echo "--- boot-props.log (session property policy)"; tail_or boot-props.log "$AS_LOGS/boot-props.log" 60
 echo "--- boot-safety.log"; tail_or boot-safety.log "$AS_LOGS/boot-safety.log" 20
+echo "--- boot-prepare.log"; tail_or boot-prepare.log "$AS_LOGS/boot-prepare.log" 30
+echo "--- attestation startup status"; tail_or attest-startup.status "$AS_LOGS/attest-startup.status" 15
+echo "--- attestation supervisor log"; tail_or attest-supervisor.log "$AS_LOGS/attest-supervisor.log" 80
+echo "--- attestation safety log"; tail_or attest-safety.log "$AS_LOGS/attest-safety.log" 30
 echo "--- denylist.log (optional target sync)"; tail_or denylist.log "$AS_LOGS/denylist.log" 30
 echo "--- autopif.log (fingerprint fetch)"; tail_or autopif.log "$AS_LOGS/autopif.log" 40
 echo "--- action-boot.log (first-boot Action)"; tail_or action-boot.log "$AS_LOGS/action-boot.log" 60

@@ -72,7 +72,10 @@ start_attestation() {
         log -t "AlwaysStrong" "boot property policy failed/timed out; new attestation startup skipped"
         return 1
     fi
-    attest_start
+    if ! attest_start; then
+        log -t "AlwaysStrong" "attestation start refused; inspect attest-supervisor.log and attest-startup.status"
+        return 1
+    fi
 }
 
 # Engines that hijack keystore2 (TrickyStoreOSS) must start at the service stage,
@@ -250,6 +253,9 @@ fi
 
 # --- TEESimulator + aswatcher watchdog ---
 {
+    # Keep the established 120-second watchdog cadence. On Android 17,
+    # speeding up TEE restarts adds risk before compatibility is verified.
+    # The per-boot circuit breaker still caps failed launches.
     while true; do
         sleep 120
         sh "$MODDIR/boot_safety.sh" allow || exit 0
