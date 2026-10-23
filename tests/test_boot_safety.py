@@ -220,7 +220,7 @@ class BootSafetyTests(unittest.TestCase):
         r=subprocess.run(['sh','-c','. "$MODDIR/attest.sh"; attest_start'],env=env,
                          capture_output=True,text=True,timeout=3)
         self.assertNotEqual(r.returncode,0,r.stdout+r.stderr)
-        self.assertIn('daemon',(logs/'attest-supervisor.log').read_text())
+        self.assertIn('attestation preflight: missing or empty', (logs/'attest-supervisor.log').read_text())
 
     def test_collector_includes_attestation_failure_details(self):
         collector=(self.mod/'collect_logs.sh').read_text()
