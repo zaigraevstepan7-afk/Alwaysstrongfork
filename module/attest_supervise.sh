@@ -65,14 +65,30 @@ uptime_seconds() {
     printf '%s\n' "$seconds"
 }
 budget="$AS_DIR/attest-attempts"
-rapid=0
+rapid=0; total_launches=0
+# Bound the TOTAL number of TEE starts per boot. The rapid counter resets
+# after a 60-second healthy run, so without this second limit a marginal
+# Android 17 keystore could still be reinjected indefinitely.
+max_launches=8
+sdk=$(getprop ro.build.version.sdk 2>/dev/null || :)
+case "$sdk" in
+    ''|*[!0-9]*) : ;;
+    *) if [ "${#sdk}" -le 3 ] && [ "$sdk" -ge 37 ]; then max_launches=3; fi ;;
+esac
 if [ "$(_kv_get "$budget" boot_id)" = "$id" ]; then
     rapid=$(_kv_get "$budget" attempts)
     case "$rapid" in 0|1|2|3) ;; *) rapid=3 ;; esac
+    total_launches=$(_kv_get "$budget" total_launches)
+    case "$total_launches" in
+        ''|*[!0-9]*) total_launches=0 ;;
+        *) [ "${#total_launches}" -le 2 ] || total_launches=$max_launches ;;
+    esac
 fi
 save_budget() {
     tmp=$(mktemp "$AS_DIR/.attest-attempts.XXXXXX") || return 1
-    printf 'boot_id=%s\nattempts=%s\n' "$id" "$rapid" > "$tmp" && mv -f "$tmp" "$budget"
+    printf 'boot_id=%s\nattempts=%s\ntotal_launches=%s\n' \
+        "$id" "$rapid" "$total_launches" > "$tmp" &&
+        chmod 600 "$tmp" && mv -f "$tmp" "$budget"
 }
 ks_changes=0; ks_window=$(uptime_seconds); ks_pid=''
 while sh "$MODPATH/boot_safety.sh" allow; do
@@ -91,7 +107,12 @@ while sh "$MODPATH/boot_safety.sh" allow; do
         pause_engine 'Attestation paused for this boot after three unconfirmed daemon launches.'
         exit 0
     fi
+    if [ "$total_launches" -ge "$max_launches" ]; then
+        pause_engine "Attestation paused: $max_launches total TEE launches in this boot (SDK $sdk)."
+        exit 0
+    fi
     rapid=$((rapid + 1))
+    total_launches=$((total_launches + 1))
     save_budget || exit 0
     started=$(uptime_seconds)
     if [ -z "$ks_pid" ]; then ks_pid=$(pidof keystore2 2>/dev/null | head -1 || :); fi
